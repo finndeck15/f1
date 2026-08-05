@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MP4/4 Telemetry & Development Log</title>
+    <!-- Import Google Model Viewer for 3D GLB Rendering -->
+    <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js"></script>
+    <style>
+        :root {
+            --bg-color: #0f1115;
+            --card-bg: #181b21;
+            --accent-red: #ff1801;
+            --text-main: #e6e8ec;
+            --text-muted: #8b949e;
+            --border-color: #2d3139;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            margin: 0;
+            padding: 0;
+            line-height: 1.6;
+        }
+
+        header {
+            background-color: var(--card-bg);
+            border-bottom: 2px solid var(--accent-red);
+            padding: 2rem 1rem;
+            text-align: center;
+        }
+
+        header h1 {
+            margin: 0;
+            font-size: 2.2rem;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+
+        header p {
+            color: var(--text-muted);
+            margin-top: 0.5rem;
+            font-style: italic;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+        }
+
+        .section-title {
+            font-size: 1.4rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            border-left: 4px solid var(--accent-red);
+            padding-left: 0.75rem;
+            margin-bottom: 1.5rem;
+        }
+
+        /* 3D Model Viewer Box */
+        .viewer-container {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            overflow: hidden;
+            margin-bottom: 3rem;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+        }
+
+        model-viewer {
+            width: 100%;
+            height: 450px;
+            --poster-color: transparent;
+        }
+
+        /* Dedication Log Styling */
+        .log-entry {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-bottom: 1.25rem;
+            transition: transform 0.2s ease, border-color 0.2s ease;
+        }
+
+        .log-entry:hover {
+            border-color: var(--accent-red);
+            transform: translateY(-2px);
+        }
+
+        .log-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 0.5rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .log-title {
+            font-weight: bold;
+            font-size: 1.1rem;
+            color: #fff;
+        }
+
+        .log-meta {
+            font-size: 0.85rem;
+            color: var(--accent-red);
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .log-body {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+        }
+
+        footer {
+            text-align: center;
+            padding: 2rem;
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            border-top: 1px solid var(--border-color);
+            margin-top: 3rem;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>MP4/4 Development Telemetry</h1>
+        <p>"No matter what your dream is, you have to dedicate yourself entirely to it." — Ayrton Senna</p>
+    </header>
+
+    <div class="container">
+        <!-- 3D MODEL VIEWER SECTION -->
+        <h2 class="section-title">Interactive 3D Chassis Model</h2>
+        <div class="viewer-container">
+            <!-- Replace 'car-model.glb' with your actual GLB filename -->
+            <model-viewer 
+                src="car-model.glb" 
+                alt="3D McLaren MP4/4 CAD Model" 
+                auto-rotate 
+                camera-controls 
+                shadow-intensity="1.5"
+                exposure="1"
+                environment-image="neutral">
+            </model-viewer>
+        </div>
+
+        <!-- DEDICATION LOG SECTION -->
+        <h2 class="section-title">Dedication Log</h2>
+
+        <div class="log-entry">
+            <div class="log-header">
+                <span class="log-title">Log 01: Concept Initialization & Regulatory Framework</span>
+                <span class="log-meta">Week 1 // Completed</span>
+            </div>
+            <div class="log-body">
+                Analyzed the 1988 McLaren MP4/4 architecture to establish our baseline aerodynamic philosophy[cite: 1]. Identified key regulatory rules regarding minimum car mass (30.0g) and wheel dimensions. Formulated team roles across Project Management, Aerodynamics, Webmaster, and Manufacturing.
+            </div>
+        </div>
+
+        <div class="log-entry">
+            <div class="log-header">
+                <span class="log-title">Log 02: Initial CAD Modeling & Gordon Murray Geometry</span>
+                <span class="log-meta">Week 3 // Completed</span>
+            </div>
+            <div class="log-body">
+                Modeled the primary chassis body in browser-based CAD. Dropped the nose cone angle to minimize frontal area and created aggressive sidepod undercuts to channel airflow directly to the rear[cite: 1]. Ran initial mass readouts against the polyurethane foam density baseline[cite: 1].
+            </div>
+        </div>
+
+        <div class="log-entry">
+            <div class="log-header">
+                <span class="log-title">Log 03: Virtual CFD & Structural Optimization</span>
+                <span class="log-meta">Week 5 // Completed</span>
+            </div>
+            <div class="log-body">
+                Generated a high-fidelity rendering model featuring detailed cockpit assembly and classic livery graphics[cite: 1]. To survive launch tube impact while saving weight, engineered low-mass hollow carbon fiber wishbones for the front and rear suspension assemblies.
+            </div>
+        </div>
+
+        <div class="log-entry">
+            <div class="log-header">
+                <span class="log-title">Log 04: Mass Excavation & Manufacturing Conversion</span>
+                <span class="log-meta">Week 7 // Completed</span>
+            </div>
+            <div class="log-body">
+                Created the manufacturing CAD configuration. Closed the open cockpit into a sleek 1.0mm canopy shell and removed non-structural interior geometry[cite: 1]. Shelled the body to a 1.2–1.5mm uniform wall thickness and hollowed floor pockets to lock in our target dry CAD mass of 15.5g.
+            </div>
+        </div>
+
+        <div class="log-entry">
+            <div class="log-header">
+                <span class="log-title">Log 05: Assembly, Finishing & Final Scrutineering</span>
+                <span class="log-meta">Week 9 // Final Calibration</span>
+            </div>
+            <div class="log-body">
+                Applied custom Day-Glo Red and White paint coats with wet-sanding passes. Installed precision low-friction bushings, carbon wishbones, and Goodyear Eagle decals[cite: 1]. Final dry mass verified on digital scales at exactly 30.0g—fully compliant and track-ready.
+            </div>
+        </div>
+
+    </div>
+
+    <footer>
+        &copy; 2026 F1 in Schools Team // Powered by GitHub Pages
+    </footer>
+
+</body>
+</html>
