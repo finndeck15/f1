@@ -10,7 +10,7 @@
         :root {
             --mclaren-red: #e60000;
             --bg-dark: #121212;
-            --panel-bg: rgba(255, 255, 255, 0.05);
+            --panel-bg: rgba(20, 20, 20, 0.85);
         }
 
         * {
@@ -35,6 +35,350 @@
             position: absolute;
             top: 20px;
             left: 20px;
+            z-index: 10;
+            pointer-events: none;
+        }
+
+        h1 {
+            font-size: 1.8rem;
+            font-weight: 800;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            color: #ffffff;
+        }
+
+        h1 span {
+            color: var(--mclaren-red);
+        }
+
+        .subtitle {
+            font-size: 0.9rem;
+            color: #a0a0a0;
+            margin-top: 4px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        /* 3D Model Canvas Container */
+        .viewer-container {
+            width: 100%;
+            height: 100%;
+            position: relative;
+        }
+
+        model-viewer {
+            width: 100%;
+            height: 100%;
+            --poster-color: transparent;
+        }
+
+        /* Custom Loading Overlay */
+        .loading-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(18, 18, 18, 0.95);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 30;
+            transition: opacity 0.5s ease, visibility 0.5s ease;
+        }
+
+        .loading-screen.hidden {
+            opacity: 0;
+            visibility: hidden;
+        }
+
+        .spinner-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            letter-spacing: 1px;
+            margin-bottom: 20px;
+            text-transform: uppercase;
+        }
+
+        .progress-bar-container {
+            width: 280px;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .progress-bar-fill {
+            width: 0%;
+            height: 100%;
+            background: var(--mclaren-red);
+            transition: width 0.2s ease;
+        }
+
+        .progress-text {
+            margin-top: 12px;
+            font-size: 0.85rem;
+            color: #888888;
+        }
+
+        /* Technical Spec Badges Bottom Overlay */
+        .specs-overlay {
+            position: absolute;
+            bottom: 25px;
+            left: 20px;
+            display: flex;
+            gap: 15px;
+            z-index: 10;
+        }
+
+        .badge {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 16px;
+            border-radius: 6px;
+        }
+
+        .badge-label {
+            font-size: 0.65rem;
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .badge-value {
+            font-size: 0.9rem;
+            font-weight: 700;
+            color: #fff;
+        }
+
+        /* ===================================================
+           HOTSPOT ANNOTATION STYLES
+           =================================================== */
+        
+        /* The Clickable Dot */
+        .hotspot-dot {
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            border: 2px solid #ffffff;
+            background: var(--mclaren-red);
+            box-shadow: 0 0 12px rgba(230, 0, 0, 0.8);
+            cursor: pointer;
+            padding: 0;
+            transition: transform 0.2s ease, background 0.2s ease;
+            position: relative;
+        }
+
+        .hotspot-dot:hover {
+            transform: scale(1.2);
+            background: #ffffff;
+        }
+
+        /* Animated Pulse Outer Ring */
+        .hotspot-dot::after {
+            content: '';
+            position: absolute;
+            top: -6px;
+            left: -6px;
+            right: -6px;
+            bottom: -6px;
+            border-radius: 50%;
+            border: 2px solid var(--mclaren-red);
+            animation: pulse 1.8s infinite ease-in-out;
+            pointer-events: none;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(0.8); opacity: 0.8; }
+            100% { transform: scale(1.6); opacity: 0; }
+        }
+
+        /* Pop-up Info Card Box */
+        .annotation-card {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 220px;
+            background: var(--panel-bg);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 8px;
+            padding: 12px;
+            color: #fff;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+            pointer-events: none;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
+
+        /* Toggle Active Info Box */
+        .hotspot-dot.active .annotation-card {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .annotation-card h3 {
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: var(--mclaren-red);
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+
+        .annotation-card p {
+            font-size: 0.75rem;
+            color: #d0d0d0;
+            line-height: 1.3;
+        }
+
+        /* Hide hotspots when hidden behind the 3D model geometry */
+        .hotspot-dot:not([data-visible]) {
+            opacity: 0;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Header Section -->
+    <header>
+        <h1>McLaren <span>MP4/4</span></h1>
+        <div class="subtitle">F1 in Schools CAD Model Viewer</div>
+    </header>
+
+    <!-- 3D Model Viewer Container -->
+    <div class="viewer-container">
+        <!-- Loading Screen Widget -->
+        <div id="loading-screen" class="loading-screen">
+            <div class="spinner-title">Loading 3D CAD Model</div>
+            <div class="progress-bar-container">
+                <div id="progress-bar-fill" class="progress-bar-fill"></div>
+            </div>
+            <div id="progress-text" class="progress-text">0%</div>
+        </div>
+
+        <!-- Interactive 3D Canvas -->
+        <model-viewer 
+            id="car-viewer"
+            src="car-model.glb" 
+            alt="McLaren MP4/4 3D CAD Model" 
+            auto-rotate 
+            camera-controls 
+            shadow-intensity="1.5"
+            exposure="1.0"
+            interaction-prompt="auto">
+
+            <!-- Hotspot 1: Front Wing -->
+            <button class="hotspot-dot" 
+                    slot="hotspot-front-wing" 
+                    data-position="0m 0.25m 1.85m" 
+                    data-normal="0m 1m 0m">
+                <div class="annotation-card">
+                    <h3>Front Wing Assembly</h3>
+                    <p>Optimized low-drag multi-element wing producing front downforce balance.</p>
+                </div>
+            </button>
+
+            <!-- Hotspot 2: Rear Wing & Spoiler -->
+            <button class="hotspot-dot" 
+                    slot="hotspot-rear-wing" 
+                    data-position="0m 0.75m -1.75m" 
+                    data-normal="0m 1m 0m">
+                <div class="annotation-card">
+                    <h3>Rear Wing & Supports</h3>
+                    <p>Rocket Red support pillars paired with high-downforce rear endplates.</p>
+                </div>
+            </button>
+
+            <!-- Hotspot 3: Cockpit / Driver Slot -->
+            <button class="hotspot-dot" 
+                    slot="hotspot-cockpit" 
+                    data-position="0m 0.45m 0.1m" 
+                    data-normal="0m 1m 0m">
+                <div class="annotation-card">
+                    <h3>Cockpit Setup</h3>
+                    <p>Features Senna's iconic #12 decal integration and reclined seating profile.</p>
+                </div>
+            </button>
+
+            <!-- Hotspot 4: Rear Wheel Alloy -->
+            <button class="hotspot-dot" 
+                    slot="hotspot-wheel" 
+                    data-position="0.75m 0.3m -1.1m" 
+                    data-normal="1m 0m 0m">
+                <div class="annotation-card">
+                    <h3>Satin Alloy Wheels</h3>
+                    <p>Re-tuned non-reflective dark satin wheel rims and Goodyear tread profile.</p>
+                </div>
+            </button>
+
+        </model-viewer>
+    </div>
+
+    <!-- Bottom Specs Overlay -->
+    <div class="specs-overlay">
+        <div class="badge">
+            <div class="badge-label">Livery Target</div>
+            <div class="badge-value">1988 Rocket Red & White</div>
+        </div>
+        <div class="badge">
+            <div class="badge-label">Car Number</div>
+            <div class="badge-value">#12</div>
+        </div>
+        <div class="badge">
+            <div class="badge-label">Mesh Optimization</div>
+            <div class="badge-value">Sub-25MB Meshopt</div>
+        </div>
+    </div>
+
+    <!-- JavaScript Handling Progress Bar & Hotspot Click Events -->
+    <script>
+        const viewer = document.getElementById('car-viewer');
+        const loadingScreen = document.getElementById('loading-screen');
+        const progressBarFill = document.getElementById('progress-bar-fill');
+        const progressText = document.getElementById('progress-text');
+
+        // Track download percentage
+        viewer.addEventListener('progress', (event) => {
+            const percentage = Math.round(event.detail.totalProgress * 100);
+            progressBarFill.style.width = `${percentage}%`;
+            progressText.innerText = `${percentage}% loaded`;
+        });
+
+        // Hide loading screen once fully rendered
+        viewer.addEventListener('load', () => {
+            loadingScreen.classList.add('hidden');
+        });
+
+        // Hotspot Click Handler: Toggle active pop-up card
+        const hotspots = document.querySelectorAll('.hotspot-dot');
+        
+        hotspots.forEach((hotspot) => {
+            hotspot.addEventListener('click', (event) => {
+                // Prevent click from bubbling up to model-viewer drag controls
+                event.stopPropagation();
+
+                // Close all other open pop-up cards
+                hotspots.forEach(h => {
+                    if (h !== hotspot) h.classList.remove('active');
+                });
+
+                // Toggle selected hotspot
+                hotspot.classList.toggle('active');
+            });
+        });
+
+        // Close pop-up cards when clicking on background 3D canvas
+        viewer.addEventListener('click', () => {
+            hotspots.forEach(h => h.classList.remove('active'));
+        });
+    </script>
+</body>
+</html>            left: 20px;
             z-index: 10;
             pointer-events: none;
         }
