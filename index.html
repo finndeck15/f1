@@ -3,14 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>McLaren MP4/4 | F1 in Schools CAD Viewer</title>
-    <!-- Import Google model-viewer script -->
+    <title>McLaren MP4/4 | F1 in Schools Engineering & Financial Telemetry</title>
+    <!-- 3D Model Viewer Engine -->
     <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js"></script>
     <style>
         :root {
             --mclaren-red: #e60000;
-            --bg-dark: #121212;
-            --panel-bg: rgba(20, 20, 20, 0.85);
+            --telemetry-green: #00ff66;
+            --bg-black: #000000;
+            --panel-bg: rgba(15, 15, 15, 0.92);
+            --border-glow: rgba(230, 0, 0, 0.3);
+            --font-mono: "Courier New", Courier, monospace;
         }
 
         * {
@@ -21,247 +24,281 @@
         }
 
         body {
-            width: 100vw;
-            height: 100vh;
-            background-color: var(--bg-dark);
+            background-color: var(--bg-black);
             color: #ffffff;
-            overflow: hidden;
+            overflow-x: hidden;
+            transition: background-color 0.8s ease;
+        }
+
+        /* Nav Bar */
+        nav {
+            position: fixed;
+            top: 0;
+            width: 100%;
+            z-index: 100;
+            background: rgba(0, 0, 0, 0.9);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid var(--border-glow);
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .nav-brand {
+            font-size: 1.1rem;
+            font-weight: 900;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+
+        .nav-brand span { color: var(--mclaren-red); }
+
+        .nav-links {
+            display: flex;
+            gap: 20px;
+            list-style: none;
+        }
+
+        .nav-links a {
+            color: #888;
+            text-decoration: none;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            font-weight: 700;
+            letter-spacing: 1px;
+            transition: color 0.3s;
+        }
+
+        .nav-links a:hover { color: var(--mclaren-red); }
+
+        /* HERO SECTION WITH B&W BACKGROUND */
+        .hero-section {
+            position: relative;
+            width: 100vw;
+            min-height: 100vh;
+            background: url('image_081aa4.jpg') center/cover no-repeat;
             display: flex;
             flex-direction: column;
+            justify-content: center;
+            padding: 100px 50px 50px 50px;
         }
 
-        /* Top Title Bar */
-        header {
+        .hero-overlay {
             position: absolute;
-            top: 20px;
-            left: 20px;
-            z-index: 10;
-            pointer-events: none;
+            inset: 0;
+            background: linear-gradient(to bottom, rgba(0,0,0,0.4) 0%, rgba(0,0,0,0.85) 100%);
         }
 
-        h1 {
-            font-size: 1.8rem;
-            font-weight: 800;
-            letter-spacing: 1px;
-            text-transform: uppercase;
-            color: #ffffff;
-        }
-
-        h1 span {
-            color: var(--mclaren-red);
-        }
-
-        .subtitle {
-            font-size: 0.9rem;
-            color: #a0a0a0;
-            margin-top: 4px;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-        }
-
-        /* 3D Model Canvas Container */
-        .viewer-container {
-            width: 100%;
-            height: 100%;
+        .hero-content {
             position: relative;
+            z-index: 10;
+            max-width: 650px;
+        }
+
+        .hero-title {
+            font-size: 3.5rem;
+            font-weight: 900;
+            text-transform: uppercase;
+            line-height: 0.95;
+            letter-spacing: -1px;
+        }
+
+        .hero-title span { color: var(--mclaren-red); }
+
+        /* Senna Signature Overlay */
+        .senna-signature {
+            width: 260px;
+            margin-top: 15px;
+            filter: drop-shadow(0 0 10px rgba(230, 0, 0, 0.6));
+        }
+
+        .quote-box {
+            margin-top: 20px;
+            border-left: 3px solid var(--mclaren-red);
+            padding-left: 15px;
+            background: rgba(0, 0, 0, 0.6);
+            padding: 12px 18px;
+            border-radius: 0 8px 8px 0;
+        }
+
+        .quote-text {
+            font-size: 0.95rem;
+            font-style: italic;
+            color: #e0e0e0;
+        }
+
+        .quote-author {
+            font-size: 0.75rem;
+            color: var(--mclaren-red);
+            font-weight: 700;
+            margin-top: 5px;
+            text-transform: uppercase;
+        }
+
+        /* Pitcoin Ticker Bar */
+        .ticker-bar {
+            position: relative;
+            z-index: 10;
+            margin-top: 40px;
+            display: inline-flex;
+            gap: 25px;
+            background: var(--panel-bg);
+            border: 1px solid var(--border-glow);
+            padding: 15px 25px;
+            border-radius: 8px;
+            font-family: var(--font-mono);
+        }
+
+        .ticker-item { display: flex; flex-direction: column; }
+        .ticker-label { font-size: 0.65rem; color: #888; text-transform: uppercase; }
+        .ticker-val { font-size: 1.1rem; color: var(--telemetry-green); font-weight: bold; }
+
+        /* 3D CAR PREVIEW SECTION (TRANSITIONS TO BLACK) */
+        .car-section {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            background: var(--bg-black);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
         }
 
         model-viewer {
             width: 100%;
             height: 100%;
-            --poster-color: transparent;
+            z-index: 5;
+            background-color: #000000;
         }
 
-        /* Custom Loading Overlay */
-        .loading-screen {
+        /* Ground Smoke Effect Layer */
+        .smoke-overlay {
             position: absolute;
-            top: 0;
+            bottom: 0;
             left: 0;
             width: 100%;
-            height: 100%;
-            background: rgba(18, 18, 18, 0.95);
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            z-index: 30;
-            transition: opacity 0.5s ease, visibility 0.5s ease;
-        }
-
-        .loading-screen.hidden {
-            opacity: 0;
-            visibility: hidden;
-        }
-
-        .spinner-title {
-            font-size: 1.2rem;
-            font-weight: 600;
-            letter-spacing: 1px;
-            margin-bottom: 20px;
-            text-transform: uppercase;
-        }
-
-        .progress-bar-container {
-            width: 280px;
-            height: 6px;
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 3px;
-            overflow: hidden;
-        }
-
-        .progress-bar-fill {
-            width: 0%;
-            height: 100%;
-            background: var(--mclaren-red);
-            transition: width 0.2s ease;
-        }
-
-        .progress-text {
-            margin-top: 12px;
-            font-size: 0.85rem;
-            color: #888888;
-        }
-
-        /* Technical Spec Badges Bottom Overlay */
-        .specs-overlay {
-            position: absolute;
-            bottom: 25px;
-            left: 20px;
-            display: flex;
-            gap: 15px;
-            z-index: 10;
-        }
-
-        .badge {
-            background: rgba(255, 255, 255, 0.05);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            padding: 8px 16px;
-            border-radius: 6px;
-        }
-
-        .badge-label {
-            font-size: 0.65rem;
-            color: #888;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-
-        .badge-value {
-            font-size: 0.9rem;
-            font-weight: 700;
-            color: #fff;
-        }
-
-        /* ===================================================
-           HOTSPOT ANNOTATION STYLES
-           =================================================== */
-        
-        /* The Clickable Dot */
-        .hotspot-dot {
-            width: 22px;
-            height: 22px;
-            border-radius: 50%;
-            border: 2px solid #ffffff;
-            background: var(--mclaren-red);
-            box-shadow: 0 0 12px rgba(230, 0, 0, 0.8);
-            cursor: pointer;
-            padding: 0;
-            transition: transform 0.2s ease, background 0.2s ease;
-            position: relative;
-        }
-
-        .hotspot-dot:hover {
-            transform: scale(1.2);
-            background: #ffffff;
-        }
-
-        /* Animated Pulse Outer Ring */
-        .hotspot-dot::after {
-            content: '';
-            position: absolute;
-            top: -6px;
-            left: -6px;
-            right: -6px;
-            bottom: -6px;
-            border-radius: 50%;
-            border: 2px solid var(--mclaren-red);
-            animation: pulse 1.8s infinite ease-in-out;
+            height: 45%;
+            background: url('image_08133f.png') bottom center/cover no-repeat;
+            mix-blend-mode: screen;
+            opacity: 0.65;
             pointer-events: none;
+            z-index: 6;
         }
 
-        @keyframes pulse {
-            0% { transform: scale(0.8); opacity: 0.8; }
-            100% { transform: scale(1.6); opacity: 0; }
+        /* 80s Telemetry Layout Sections */
+        .content-section {
+            padding: 80px 50px;
+            background: var(--bg-black);
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
         }
 
-        /* Pop-up Info Card Box */
-        .annotation-card {
-            position: absolute;
-            bottom: 30px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 220px;
+        .section-header {
+            font-size: 1.8rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 30px;
+            border-left: 4px solid var(--mclaren-red);
+            padding-left: 15px;
+        }
+
+        .telemetry-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 25px;
+        }
+
+        .telemetry-card {
             background: var(--panel-bg);
-            backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.1);
             border-radius: 8px;
-            padding: 12px;
-            color: #fff;
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
-            pointer-events: none;
-            opacity: 0;
-            visibility: hidden;
-            transition: opacity 0.3s ease, visibility 0.3s ease;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
         }
 
-        /* Toggle Active Info Box */
-        .hotspot-dot.active .annotation-card {
-            opacity: 1;
-            visibility: visible;
-        }
-
-        .annotation-card h3 {
-            font-size: 0.85rem;
-            font-weight: 700;
+        .telemetry-card h3 {
+            font-size: 1.1rem;
             color: var(--mclaren-red);
+            margin-bottom: 15px;
             text-transform: uppercase;
-            margin-bottom: 4px;
         }
 
-        .annotation-card p {
-            font-size: 0.75rem;
-            color: #d0d0d0;
-            line-height: 1.3;
+        .telemetry-card p {
+            font-size: 0.88rem;
+            color: #aaa;
+            line-height: 1.6;
         }
 
-        /* Hide hotspots when hidden behind the 3D model geometry */
-        .hotspot-dot:not([data-visible]) {
-            opacity: 0;
-            pointer-events: none;
+        /* High-Impact Tables */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            margin-top: 15px;
         }
+
+        th, td {
+            padding: 10px 12px;
+            text-align: left;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        th { color: var(--mclaren-red); text-transform: uppercase; }
+        td { color: #ddd; }
+        .highlight { color: var(--telemetry-green); font-weight: bold; }
     </style>
 </head>
 <body>
 
-    <!-- Header Section -->
-    <header>
-        <h1>McLaren <span>MP4/4</span></h1>
-        <div class="subtitle">F1 in Schools CAD Model Viewer</div>
-    </header>
+    <!-- Nav Bar -->
+    <nav>
+        <div class="nav-brand">McLaren <span>MP4/4</span> telemetry</div>
+        <ul class="nav-links">
+            <li><a href="#hero">Launchpad</a></li>
+            <li><a href="#car-view">3D CAD Garage</a></li>
+            <li><a href="#engineering">30g Specs</a></li>
+            <li><a href="#wallstreet">Pitcoin Dashboard</a></li>
+            <li><a href="#pitwall">Pit Wall</a></li>
+        </ul>
+    </nav>
 
-    <!-- 3D Model Viewer Container -->
-    <div class="viewer-container">
-        <!-- Loading Screen Widget -->
-        <div id="loading-screen" class="loading-screen">
-            <div class="spinner-title">Loading 3D CAD Model</div>
-            <div class="progress-bar-container">
-                <div id="progress-bar-fill" class="progress-bar-fill"></div>
+    <!-- HERO SECTION (B&W Background) -->
+    <section class="hero-section" id="hero">
+        <div class="hero-overlay"></div>
+        <div class="hero-content">
+            <h1 class="hero-title">Pursuit of <span>Perfection</span></h1>
+            <div class="subtitle" style="color:#aaa; letter-spacing:2px; margin-top:8px;">F1 IN SCHOOLS CAD & AERODYNAMICS TELEMETRY</div>
+            
+            <!-- Signature File -->
+            <img src="6a738e14f6e473000eb4c565.png" alt="Ayrton Senna Signature" class="senna-signature">
+
+            <div class="quote-box">
+                <div class="quote-text">"If you no longer go for a gap that exists, you are no longer a racing driver."</div>
+                <div class="quote-author">— Ayrton Senna</div>
             </div>
-            <div id="progress-text" class="progress-text">0%</div>
-        </div>
 
-        <!-- Interactive 3D Canvas -->
+            <!-- Pitcoin Live Ticker -->
+            <div class="ticker-bar">
+                <div class="ticker-item">
+                    <span class="ticker-label">Pitcoin Balance</span>
+                    <span class="ticker-val">₳ 42,500</span>
+                </div>
+                <div class="ticker-item">
+                    <span class="ticker-label">Weekly Progress Yield</span>
+                    <span class="ticker-val">+ ₳ 8,200 / wk</span>
+                </div>
+                <div class="ticker-item">
+                    <span class="ticker-label">Judged Point Value</span>
+                    <span class="ticker-val">98.4 PTS</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 3D CAR SECTION (Turns Page Black + Smoke Ground Effect) -->
+    <section class="car-section" id="car-view">
         <model-viewer 
             id="car-viewer"
             src="car-model.glb" 
@@ -271,111 +308,92 @@
             shadow-intensity="1.5"
             exposure="1.0"
             interaction-prompt="auto">
-
-            <!-- Hotspot 1: Front Wing -->
-            <button class="hotspot-dot" 
-                    slot="hotspot-front-wing" 
-                    data-position="0m 0.25m 1.85m" 
-                    data-normal="0m 1m 0m">
-                <div class="annotation-card">
-                    <h3>Front Wing Assembly</h3>
-                    <p>Optimized low-drag multi-element wing producing front downforce balance.</p>
-                </div>
-            </button>
-
-            <!-- Hotspot 2: Rear Wing & Spoiler -->
-            <button class="hotspot-dot" 
-                    slot="hotspot-rear-wing" 
-                    data-position="0m 0.75m -1.75m" 
-                    data-normal="0m 1m 0m">
-                <div class="annotation-card">
-                    <h3>Rear Wing & Supports</h3>
-                    <p>Rocket Red support pillars paired with high-downforce rear endplates.</p>
-                </div>
-            </button>
-
-            <!-- Hotspot 3: Cockpit / Driver Slot -->
-            <button class="hotspot-dot" 
-                    slot="hotspot-cockpit" 
-                    data-position="0m 0.45m 0.1m" 
-                    data-normal="0m 1m 0m">
-                <div class="annotation-card">
-                    <h3>Cockpit Setup</h3>
-                    <p>Features Senna's iconic #12 decal integration and reclined seating profile.</p>
-                </div>
-            </button>
-
-            <!-- Hotspot 4: Rear Wheel Alloy -->
-            <button class="hotspot-dot" 
-                    slot="hotspot-wheel" 
-                    data-position="0.75m 0.3m -1.1m" 
-                    data-normal="1m 0m 0m">
-                <div class="annotation-card">
-                    <h3>Satin Alloy Wheels</h3>
-                    <p>Re-tuned non-reflective dark satin wheel rims and Goodyear tread profile.</p>
-                </div>
-            </button>
-
         </model-viewer>
-    </div>
 
-    <!-- Bottom Specs Overlay -->
-    <div class="specs-overlay">
-        <div class="badge">
-            <div class="badge-label">Livery Target</div>
-            <div class="badge-value">1988 Rocket Red & White</div>
-        </div>
-        <div class="badge">
-            <div class="badge-label">Car Number</div>
-            <div class="badge-value">#12</div>
-        </div>
-        <div class="badge">
-            <div class="badge-label">Mesh Optimization</div>
-            <div class="badge-value">Sub-25MB Meshopt</div>
-        </div>
-    </div>
+        <!-- Smoke Effect File -->
+        <div class="smoke-overlay"></div>
+    </section>
 
-    <!-- JavaScript Handling Progress Bar & Hotspot Click Events -->
+    <!-- THE GARAGE: ENGINEERING & CFD -->
+    <section class="content-section" id="engineering">
+        <h2 class="section-header">The Garage // Engineering & CFD</h2>
+        <div class="telemetry-grid">
+            <div class="telemetry-card">
+                <h3>Gordon Murray Aero Concept</h3>
+                <p><strong>Low Front Nose:</strong> Dropped nose cone relative to standard F1 in Schools blocks cuts frontal surface area, slashing drag while paring block mass.</p>
+                <p style="margin-top:10px;"><strong>Sidepod Scalloping:</strong> Undercuts beneath the sidepods mirror classic V6 Turbo intakes, removing dead central body weight.</p>
+            </div>
+
+            <div class="telemetry-card">
+                <h3>30g Weight Optimization Table</h3>
+                <table>
+                    <thead>
+                        <tr><th>Component</th><th>Material Target</th><th>Mass</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>Main Body Shell</td><td>Hollowed Polyurethane (1.0mm)</td><td>18.4g</td></tr>
+                        <tr><td>Wheels & Axles</td><td>Acetal Wheels / Carbon Axle</td><td>7.2g</td></tr>
+                        <tr><td>Wing Elements</td><td>3D Printed Ultra-Thin Film</td><td>3.1g</td></tr>
+                        <tr><td>Paint & Water-Decals</td><td>Micro-Layer & Sanded Primer</td><td>2.5g</td></tr>
+                        <tr><td class="highlight">Total Dry Target</td><td class="highlight">Legal Cutoff Limit</td><td class="highlight">31.2g</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
+    <!-- WALL STREET / FINANCIAL DASHBOARD -->
+    <section class="content-section" id="wallstreet">
+        <h2 class="section-header">Wall Street // Financial Dashboard</h2>
+        <div class="telemetry-grid">
+            <div class="telemetry-card">
+                <h3>Auction Yield & ROI Tracker</h3>
+                <table>
+                    <thead>
+                        <tr><th>Item</th><th>Cost</th><th>Return Yield</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>Chassis Aero Testing</td><td>₳ 5,000</td><td class="highlight">+ 12.5 PTS</td></tr>
+                        <tr><td>Low-Friction Bearings</td><td>₳ 3,200</td><td class="highlight">+ 8.0 PTS</td></tr>
+                        <tr><td>Waterslide Decal License</td><td>₳ 1,500</td><td class="highlight">+ 5.0 PTS</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="telemetry-card">
+                <h3>Testing Livery Strategy</h3>
+                <p>Allocated 35% of liquidity toward early CFD testing auctions to secure aerodynamic score guarantees prior to final manufacturing cutoffs.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- THE PIT WALL (TEAM & MEDIA) -->
+    <section class="content-section" id="pitwall">
+        <h2 class="section-header">The Pit Wall // Team Roster</h2>
+        <div class="telemetry-grid">
+            <div class="telemetry-card">
+                <h3>4-Person Roster</h3>
+                <p><strong>Team Principal / CFO:</strong> Financial Strategy & Pitcoin Yield</p>
+                <p><strong>Lead Engineer:</strong> CAD Optimization & CFD Analysis</p>
+                <p><strong>Webmaster:</strong> Telemetry UI & 3D Integration</p>
+                <p><strong>Pit Display Lead:</strong> Brand Identity & Presentation</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Scroll Observer Script for Seamless Black Background Transition -->
     <script>
-        const viewer = document.getElementById('car-viewer');
-        const loadingScreen = document.getElementById('loading-screen');
-        const progressBarFill = document.getElementById('progress-bar-fill');
-        const progressText = document.getElementById('progress-text');
-
-        // Track download percentage
-        viewer.addEventListener('progress', (event) => {
-            const percentage = Math.round(event.detail.totalProgress * 100);
-            progressBarFill.style.width = `${percentage}%`;
-            progressText.innerText = `${percentage}% loaded`;
-        });
-
-        // Hide loading screen once fully rendered
-        viewer.addEventListener('load', () => {
-            loadingScreen.classList.add('hidden');
-        });
-
-        // Hotspot Click Handler: Toggle active pop-up card
-        const hotspots = document.querySelectorAll('.hotspot-dot');
+        const carSection = document.getElementById('car-view');
         
-        hotspots.forEach((hotspot) => {
-            hotspot.addEventListener('click', (event) => {
-                // Prevent click from bubbling up to model-viewer drag controls
-                event.stopPropagation();
-
-                // Close all other open pop-up cards
-                hotspots.forEach(h => {
-                    if (h !== hotspot) h.classList.remove('active');
-                });
-
-                // Toggle selected hotspot
-                hotspot.classList.toggle('active');
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    document.body.style.backgroundColor = '#000000';
+                }
             });
-        });
+        }, { threshold: 0.3 });
 
-        // Close pop-up cards when clicking on background 3D canvas
-        viewer.addEventListener('click', () => {
-            hotspots.forEach(h => h.classList.remove('active'));
-        });
+        observer.observe(carSection);
     </script>
 </body>
 </html>
