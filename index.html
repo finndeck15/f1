@@ -10,6 +10,7 @@
         :root {
             --mclaren-red: #e60000;
             --telemetry-green: #00ff66;
+            --engine-silver: #888888;
             --bg-black: #000000;
             --panel-bg: rgba(18, 18, 18, 0.95);
             --border-glow: rgba(230, 0, 0, 0.4);
@@ -169,7 +170,6 @@
             transition: filter 0.5s ease;
         }
 
-        /* Heatmap Mode Filter Overlay */
         model-viewer.heatmap-active {
             filter: hue-rotate(180deg) contrast(200%) saturate(300%);
         }
@@ -258,41 +258,44 @@
             line-height: 1.5;
         }
 
-        /* Donut Chart Styling */
+        /* Dynamic Donut Chart Styling */
         .chart-container {
             display: flex;
             align-items: center;
-            gap: 20px;
+            gap: 25px;
             margin-top: 15px;
         }
 
         .donut-chart {
-            width: 100px;
-            height: 100px;
+            width: 110px;
+            height: 110px;
             border-radius: 50%;
             background: conic-gradient(
                 var(--mclaren-red) 0% 45%, 
                 var(--telemetry-green) 45% 80%, 
-                #0088ff 80% 100%
+                var(--engine-silver) 80% 100%
             );
             display: flex;
             justify-content: center;
             align-items: center;
+            box-shadow: 0 0 15px rgba(0,0,0,0.8);
+            transition: background 0.4s ease;
         }
 
         .donut-hole {
-            width: 60px;
-            height: 60px;
+            width: 65px;
+            height: 65px;
             background: #121212;
             border-radius: 50%;
+            border: 1px solid rgba(255, 255, 255, 0.05);
         }
 
         .chart-legend {
             font-family: var(--font-mono);
-            font-size: 0.75rem;
+            font-size: 0.78rem;
             display: flex;
             flex-direction: column;
-            gap: 6px;
+            gap: 8px;
         }
 
         .legend-dot {
@@ -300,7 +303,7 @@
             width: 10px;
             height: 10px;
             border-radius: 2px;
-            margin-right: 6px;
+            margin-right: 8px;
         }
 
         /* Tables */
@@ -344,7 +347,30 @@
             color: var(--mclaren-red);
             text-transform: uppercase;
             letter-spacing: 1px;
+            margin-bottom: 12px;
+        }
+
+        .admin-group {
             margin-bottom: 10px;
+        }
+
+        .admin-group label {
+            display: block;
+            font-size: 0.7rem;
+            color: #aaa;
+            margin-bottom: 3px;
+            text-transform: uppercase;
+        }
+
+        .admin-group input {
+            width: 100%;
+            background: #222;
+            border: 1px solid rgba(255,255,255,0.2);
+            padding: 6px 8px;
+            color: var(--telemetry-green);
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            border-radius: 4px;
         }
 
         .edit-toggle-btn {
@@ -359,9 +385,9 @@
             text-transform: uppercase;
             font-weight: bold;
             border-radius: 4px;
+            margin-top: 8px;
         }
 
-        /* Universal Text Editing Outline Highlight */
         [contenteditable="true"] {
             outline: 1px dashed var(--telemetry-green) !important;
             background: rgba(0, 255, 102, 0.05);
@@ -390,7 +416,6 @@
             
             <img src="6a738e14f6e473000eb4c565.png" alt="Ayrton Senna Signature" class="senna-signature">
 
-            <!-- Corrected Quote -->
             <div class="quote-box">
                 <div class="quote-text">"No matter what your dream is, you have to dedicate yourself entirely to it."</div>
                 <div class="quote-author">— Ayrton Senna</div>
@@ -463,18 +488,18 @@
         </div>
     </section>
 
-    <!-- WALL STREET / FINANCIAL DASHBOARD WITH BUDGET PIE CHART -->
+    <!-- WALL STREET / FINANCIAL DASHBOARD WITH EDITABLE BUDGET CHART -->
     <section class="content-section" id="wallstreet">
         <h2 class="section-header">Wall Street // Financial Dashboard</h2>
         <div class="telemetry-grid">
             <div class="telemetry-card">
                 <h3>Pitcoin Allocation Budget</h3>
                 <div class="chart-container">
-                    <div class="donut-chart"><div class="donut-hole"></div></div>
+                    <div class="donut-chart" id="donut-chart"><div class="donut-hole"></div></div>
                     <div class="chart-legend">
-                        <div><span class="legend-dot" style="background:var(--mclaren-red)"></span>Aero & CFD (45%)</div>
-                        <div><span class="legend-dot" style="background:var(--telemetry-green)"></span>Manufacturing (35%)</div>
-                        <div><span class="legend-dot" style="background:#0088ff"></span>Marketing & Display (20%)</div>
+                        <div><span class="legend-dot" style="background:var(--mclaren-red)"></span>Aero & CFD: <span id="leg-aero">45%</span></div>
+                        <div><span class="legend-dot" style="background:var(--telemetry-green)"></span>Manufacturing: <span id="leg-mfg">35%</span></div>
+                        <div><span class="legend-dot" style="background:var(--engine-silver)"></span>Marketing: <span id="leg-mkt">20%</span></div>
                     </div>
                 </div>
             </div>
@@ -512,8 +537,24 @@
     <!-- SECRET ADMIN CONTROL PANEL -->
     <div class="admin-panel" id="admin-panel">
         <div class="admin-header">
-            <h2>Telemetry Live Controls</h2>
+            <h2>Telemetry Controls</h2>
         </div>
+        
+        <div class="admin-group">
+            <label>Aero Budget Value</label>
+            <input type="number" id="input-aero" value="45">
+        </div>
+
+        <div class="admin-group">
+            <label>Manufacturing Budget Value</label>
+            <input type="number" id="input-mfg" value="35">
+        </div>
+
+        <div class="admin-group">
+            <label>Marketing Budget Value</label>
+            <input type="number" id="input-mkt" value="20">
+        </div>
+
         <button class="edit-toggle-btn" id="toggle-universal-edit">Enable Universal Text Edit Mode</button>
     </div>
 
@@ -525,7 +566,7 @@
             carViewer.classList.toggle('heatmap-active');
         });
 
-        // 2. Live Countdown Timer Script (Counts down to 14 days out)
+        // 2. Live Countdown Timer Script
         const targetDate = new Date().getTime() + (14 * 24 * 60 * 60 * 1000);
         setInterval(() => {
             const now = new Date().getTime();
@@ -538,7 +579,38 @@
                 `${days}d ${hours}h ${minutes}m ${seconds}s`;
         }, 1000);
 
-        // 3. Admin Key Sequence ('121988') & Universal Editable Text Mode
+        // 3. Dynamic Editable Pie/Donut Chart Logic
+        const inputAero = document.getElementById('input-aero');
+        const inputMfg = document.getElementById('input-mfg');
+        const inputMkt = document.getElementById('input-mkt');
+        const donutChart = document.getElementById('donut-chart');
+
+        function updateChart() {
+            const aeroVal = parseFloat(inputAero.value) || 0;
+            const mfgVal = parseFloat(inputMfg.value) || 0;
+            const mktVal = parseFloat(inputMkt.value) || 0;
+            const total = aeroVal + mfgVal + mktVal || 1;
+
+            const aeroPct = Math.round((aeroVal / total) * 100);
+            const mfgPct = Math.round((mfgVal / total) * 100);
+            const mktPct = 100 - aeroPct - mfgPct;
+
+            document.getElementById('leg-aero').innerText = aeroPct + '%';
+            document.getElementById('leg-mfg').innerText = mfgPct + '%';
+            document.getElementById('leg-mkt').innerText = mktPct + '%';
+
+            donutChart.style.background = `conic-gradient(
+                var(--mclaren-red) 0% ${aeroPct}%, 
+                var(--telemetry-green) ${aeroPct}% ${aeroPct + mfgPct}%, 
+                var(--engine-silver) ${aeroPct + mfgPct}% 100%
+            )`;
+        }
+
+        inputAero.addEventListener('input', updateChart);
+        inputMfg.addEventListener('input', updateChart);
+        inputMkt.addEventListener('input', updateChart);
+
+        // 4. Admin Key Sequence ('121988') & Universal Text Edit Toggle
         const sequence = ['1', '2', '1', '9', '8', '8'];
         let keyHistory = [];
         const adminPanel = document.getElementById('admin-panel');
@@ -546,7 +618,7 @@
         let isEditingEnabled = false;
 
         window.addEventListener('keydown', (e) => {
-            if (isEditingEnabled && document.activeElement.isContentEditable) return;
+            if (e.target.tagName === 'INPUT' || (isEditingEnabled && document.activeElement.isContentEditable)) return;
 
             keyHistory.push(e.key);
             if (keyHistory.length > sequence.length) keyHistory.shift();
