@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>McLaren MP4/4 | F1 in Schools CAD & Telemetry</title>
-    <!-- 3D Model Engine -->
+    <title>McLaren MP4/4 | Telemetry & CAD Interface</title>
+    <!-- 3D Model Viewer Engine -->
     <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js"></script>
     <style>
         :root {
@@ -29,7 +29,7 @@
             overflow-x: hidden;
         }
 
-        /* Top Navigation Bar */
+        /* Top Navigation */
         nav {
             position: fixed;
             top: 0;
@@ -104,15 +104,15 @@
             font-weight: 600;
         }
 
-        /* Red Senna Signature Image */
+        /* Senna Signature Overlay */
         .senna-signature {
             width: 280px;
             margin-top: 15px;
             display: block;
-            filter: drop-shadow(0 0 8px rgba(230, 0, 0, 0.5));
+            filter: drop-shadow(0 0 8px rgba(230, 0, 0, 0.6));
         }
 
-        /* Updated Quote Box */
+        /* Fixed Quote Section */
         .quote-box {
             margin-top: 20px;
             border-left: 3px solid var(--mclaren-red);
@@ -170,19 +170,24 @@
             background-color: var(--bg-black);
         }
 
-        /* Ground Smoke Layer */
+        /* VISIBLE GROUND SMOKE EFFECT LAYER */
         .smoke-overlay {
             position: absolute;
-            bottom: -10px;
+            bottom: 0;
             left: 0;
             width: 100%;
-            height: 45%;
-            background: url('image_08133f.png') bottom center/cover no-repeat;
-            mix-blend-mode: screen;
-            filter: invert(1);
-            opacity: 0.45;
-            pointer-events: none;
+            height: 50%;
             z-index: 6;
+            pointer-events: none;
+            background-image: 
+                radial-gradient(circle at 50% 100%, rgba(200, 200, 200, 0.4) 0%, rgba(100, 100, 100, 0.15) 45%, rgba(0,0,0,0) 70%),
+                url('image_08133f.png');
+            background-size: cover, cover;
+            background-position: center bottom, center bottom;
+            background-repeat: no-repeat, no-repeat;
+            mix-blend-mode: screen;
+            opacity: 0.8;
+            filter: grayscale(100%) contrast(150%) brightness(120%);
         }
 
         /* Content Sections */
@@ -246,49 +251,19 @@
         td { color: #ddd; }
         .highlight { color: var(--telemetry-green); font-weight: bold; }
 
-        /* SECRET FINGERPRINT ADMIN BUTTON */
-        .admin-trigger {
-            position: fixed;
-            bottom: 25px;
-            right: 25px;
-            z-index: 200;
-            width: 46px;
-            height: 46px;
-            border-radius: 50%;
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-
-        .admin-trigger:hover {
-            border-color: var(--mclaren-red);
-            box-shadow: 0 0 15px rgba(230, 0, 0, 0.5);
-        }
-
-        .admin-trigger svg {
-            width: 22px;
-            height: 22px;
-            fill: #aaaaaa;
-        }
-
-        /* ADMIN EDIT MODAL PANEL */
+        /* SECRET KEYBOARD ADMIN PANEL */
         .admin-panel {
             position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 360px;
+            top: 20px;
+            right: 20px;
+            width: 320px;
             background: #111111;
             border: 2px solid var(--mclaren-red);
-            border-radius: 10px;
-            padding: 20px;
-            z-index: 300;
+            border-radius: 8px;
+            padding: 18px;
+            z-index: 9999;
             display: none;
-            box-shadow: 0 0 40px rgba(0, 0, 0, 0.95);
+            box-shadow: 0 0 30px rgba(230, 0, 0, 0.4);
         }
 
         .admin-panel.active { display: block; }
@@ -297,29 +272,27 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 15px;
+            margin-bottom: 12px;
             border-bottom: 1px solid rgba(255,255,255,0.1);
-            padding-bottom: 8px;
+            padding-bottom: 6px;
         }
 
         .admin-header h2 {
-            font-size: 1rem;
+            font-size: 0.9rem;
             color: var(--mclaren-red);
             text-transform: uppercase;
             letter-spacing: 1px;
         }
 
-        .close-admin { cursor: pointer; color: #888; font-weight: bold; }
-
         .admin-group {
-            margin-bottom: 12px;
+            margin-bottom: 10px;
         }
 
         .admin-group label {
             display: block;
-            font-size: 0.75rem;
+            font-size: 0.7rem;
             color: #aaa;
-            margin-bottom: 4px;
+            margin-bottom: 3px;
             text-transform: uppercase;
         }
 
@@ -327,10 +300,18 @@
             width: 100%;
             background: #222;
             border: 1px solid rgba(255,255,255,0.2);
-            padding: 8px;
+            padding: 6px 8px;
             color: var(--telemetry-green);
             font-family: var(--font-mono);
+            font-size: 0.85rem;
             border-radius: 4px;
+        }
+
+        .admin-status {
+            font-size: 0.65rem;
+            color: var(--telemetry-green);
+            margin-top: 8px;
+            font-family: var(--font-mono);
         }
     </style>
 </head>
@@ -381,7 +362,7 @@
         </div>
     </section>
 
-    <!-- 3D CAR SECTION WITH SMOKE EFFECT -->
+    <!-- 3D CAR SECTION WITH VISIBLE SMOKE EFFECT -->
     <section class="car-section" id="car-view">
         <model-viewer 
             id="car-viewer"
@@ -390,8 +371,7 @@
             auto-rotate 
             camera-controls 
             shadow-intensity="1.5"
-            exposure="1.0"
-            interaction-prompt="auto">
+            exposure="1.0">
         </model-viewer>
 
         <!-- Ground Smoke Layer -->
@@ -465,18 +445,10 @@
         </div>
     </section>
 
-    <!-- Secret Admin Fingerprint Trigger Icon -->
-    <div class="admin-trigger" id="admin-trigger" title="Admin Security Unlock">
-        <svg viewBox="0 0 24 24">
-            <path d="M17.81 4.47c-.08 0-.16-.02-.23-.06-2.42-1.48-5.41-2.22-8.58-2.22-3.17 0-6.16.74-8.58 2.22-.3.18-.4.57-.22.87.18.3.57.4.87.22 2.22-1.36 4.96-2.04 7.93-2.04 2.97 0 5.71.68 7.93 2.04.3.18.69.08.87-.22.18-.3.08-.69-.22-.87zM12 14c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3zm0 4.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/>
-        </svg>
-    </div>
-
-    <!-- Admin Edit Modal Panel -->
+    <!-- ADMIN EDIT PANEL (PRESS 1-2-1-9-8-8 TO TOGGLE) -->
     <div class="admin-panel" id="admin-panel">
         <div class="admin-header">
-            <h2>Telemetry Editor</h2>
-            <span class="close-admin" id="close-admin">✕</span>
+            <h2>Telemetry Live Controls</h2>
         </div>
         
         <div class="admin-group">
@@ -495,33 +467,35 @@
         </div>
 
         <div class="admin-group">
-            <label>Lead Engineer Name/Role</label>
+            <label>Lead Engineer Role Text</label>
             <input type="text" id="input-role2" value="Lead Engineer">
         </div>
+
+        <div class="admin-status">[SYSTEM UNLOCKED - PRESS 121988 TO HIDE]</div>
     </div>
 
-    <!-- Script Handling Admin Password & Live Data Edits -->
+    <!-- SCRIPT FOR KEY SEQUENCE (121988) & REAL-TIME EDITING -->
     <script>
-        const SECRET_PIN = "1988";
-        const adminTrigger = document.getElementById('admin-trigger');
+        const sequence = ['1', '2', '1', '9', '8', '8'];
+        let keyHistory = [];
         const adminPanel = document.getElementById('admin-panel');
-        const closeAdmin = document.getElementById('close-admin');
 
-        // Unlock Security Prompt
-        adminTrigger.addEventListener('click', () => {
-            const userPass = prompt("Enter Security PIN to unlock Telemetry Admin Mode:");
-            if (userPass === SECRET_PIN) {
-                adminPanel.classList.add('active');
-            } else if (userPass !== null) {
-                alert("Access Denied: Incorrect PIN");
+        // Detect Typing '121988' Anywhere
+        window.addEventListener('keydown', (e) => {
+            // Ignore key presses if user is actively editing inside an input box
+            if (e.target.tagName === 'INPUT') return;
+
+            keyHistory.push(e.key);
+            if (keyHistory.length > sequence.length) {
+                keyHistory.shift();
+            }
+
+            if (keyHistory.join('') === sequence.join('')) {
+                adminPanel.classList.toggle('active');
             }
         });
 
-        closeAdmin.addEventListener('click', () => {
-            adminPanel.classList.remove('active');
-        });
-
-        // Real-Time Live Data Updates
+        // Live Real-time Updating Script
         document.getElementById('input-balance').addEventListener('input', (e) => {
             document.getElementById('val-balance').innerText = e.target.value;
         });
