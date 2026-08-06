@@ -153,7 +153,7 @@
         .ticker-val { font-size: 1.1rem; color: var(--telemetry-green); font-weight: bold; }
         .ticker-val.timer { color: var(--mclaren-red); }
 
-        /* 3D CAR SECTION */
+        /* 3D CAR SECTION WITH OVERLAY CANVAS */
         .car-section {
             position: relative;
             width: 100vw;
@@ -172,6 +172,23 @@
 
         model-viewer.heatmap-active {
             filter: hue-rotate(180deg) contrast(200%) saturate(300%);
+        }
+
+        /* OPTION 2: Dynamic Vector Overlay Canvas */
+        #cfd-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 10;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.5s ease;
+        }
+
+        #cfd-overlay.active {
+            opacity: 1;
         }
 
         .cfd-toggle-btn {
@@ -443,9 +460,9 @@
         </div>
     </section>
 
-    <!-- 3D CAR SECTION WITH HEATMAP TOGGLE -->
+    <!-- 3D CAR SECTION WITH HEATMAP & DYNAMIC CFD VECTOR OVERLAY -->
     <section class="car-section" id="car-view">
-        <button class="cfd-toggle-btn" id="heatmap-btn">Toggle CFD Pressure Heatmap</button>
+        <button class="cfd-toggle-btn" id="heatmap-btn">Toggle CFD Pressure & Airflow Vectors</button>
         
         <model-viewer 
             id="car-viewer"
@@ -456,6 +473,9 @@
             shadow-intensity="1.5"
             exposure="1.0">
         </model-viewer>
+
+        <!-- Overlay Canvas for Particle Vector Stream -->
+        <canvas id="cfd-overlay"></canvas>
 
         <div class="smoke-overlay"></div>
     </section>
@@ -559,14 +579,88 @@
     </div>
 
     <script>
-        // 1. CFD Heatmap Toggle Script
+        // 1. CFD Heatmap & Dynamic Arrow Vector Toggle Script
         const heatmapBtn = document.getElementById('heatmap-btn');
         const carViewer = document.getElementById('car-viewer');
+        const cfdCanvas = document.getElementById('cfd-overlay');
+
         heatmapBtn.addEventListener('click', () => {
             carViewer.classList.toggle('heatmap-active');
+            cfdCanvas.classList.toggle('active');
         });
 
-        // 2. Live Countdown Timer Script
+        // 2. OPTION 2: HTML5 Canvas Multi-colored Airflow Vector Stream Engine
+        const ctx = cfdCanvas.getContext('2d');
+        
+        function resizeCfdCanvas() {
+            cfdCanvas.width = cfdCanvas.offsetWidth;
+            cfdCanvas.height = cfdCanvas.offsetHeight;
+        }
+        resizeCfdCanvas();
+        window.addEventListener('resize', resizeCfdCanvas);
+
+        // Generate particle flow points
+        const particleCount = 60;
+        const particles = Array.from({ length: particleCount }, () => ({
+            x: Math.random() * cfdCanvas.width * 0.8 + cfdCanvas.width * 0.1,
+            y: Math.random() * cfdCanvas.height * 0.5 + cfdCanvas.height * 0.25,
+            speed: 4 + Math.random() * 5,
+            size: 6 + Math.random() * 6
+        }));
+
+        function renderCFDFlow() {
+            ctx.clearRect(0, 0, cfdCanvas.width, cfdCanvas.height);
+
+            if (cfdCanvas.classList.contains('active')) {
+                particles.forEach(p => {
+                    p.x -= p.speed; // Stream flow backwards over chassis
+                    if (p.x < cfdCanvas.width * 0.15) {
+                        p.x = cfdCanvas.width * 0.85;
+                        p.y = Math.random() * cfdCanvas.height * 0.5 + cfdCanvas.height * 0.25;
+                    }
+
+                    // Multi-colored flow mapping
+                    // Front nose high pressure = Red (#e60000)
+                    // Mid chassis flow = Green (#00ff66)
+                    // Rear wake low pressure = Silver/Blue (#888888)
+                    let arrowColor = "#00ff66";
+                    if (p.x > cfdCanvas.width * 0.65) {
+                        arrowColor = "#e60000";
+                    } else if (p.x < cfdCanvas.width * 0.35) {
+                        arrowColor = "#888888";
+                    }
+
+                    ctx.save();
+                    ctx.translate(p.x, p.y);
+                    ctx.fillStyle = arrowColor;
+                    ctx.shadowBlur = 12;
+                    ctx.shadowColor = arrowColor;
+
+                    // Draw flow arrow cone
+                    ctx.beginPath();
+                    ctx.moveTo(-p.size * 1.5, 0);
+                    ctx.lineTo(0, -p.size / 2);
+                    ctx.lineTo(0, p.size / 2);
+                    ctx.closePath();
+                    ctx.fill();
+
+                    // Arrow tail line
+                    ctx.strokeStyle = arrowColor;
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.moveTo(0, 0);
+                    ctx.lineTo(p.size * 2, 0);
+                    ctx.stroke();
+
+                    ctx.restore();
+                });
+            }
+
+            requestAnimationFrame(renderCFDFlow);
+        }
+        renderCFDFlow();
+
+        // 3. Live Countdown Timer Script
         const targetDate = new Date().getTime() + (14 * 24 * 60 * 60 * 1000);
         setInterval(() => {
             const now = new Date().getTime();
@@ -579,7 +673,7 @@
                 `${days}d ${hours}h ${minutes}m ${seconds}s`;
         }, 1000);
 
-        // 3. Dynamic Editable Pie/Donut Chart Logic
+        // 4. Dynamic Editable Pie/Donut Chart Logic
         const inputAero = document.getElementById('input-aero');
         const inputMfg = document.getElementById('input-mfg');
         const inputMkt = document.getElementById('input-mkt');
@@ -610,7 +704,7 @@
         inputMfg.addEventListener('input', updateChart);
         inputMkt.addEventListener('input', updateChart);
 
-        // 4. Admin Key Sequence ('121988') & Universal Text Edit Toggle
+        // 5. Admin Key Sequence ('121988') & Universal Text Edit Toggle
         const sequence = ['1', '2', '1', '9', '8', '8'];
         let keyHistory = [];
         const adminPanel = document.getElementById('admin-panel');
