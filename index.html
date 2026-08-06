@@ -58,6 +58,7 @@
             display: flex;
             gap: 20px;
             list-style: none;
+            align-items: center;
         }
 
         .nav-links a {
@@ -71,6 +72,20 @@
         }
 
         .nav-links a:hover { color: var(--mclaren-red); }
+
+        .pdf-btn {
+            background: var(--mclaren-red);
+            color: #fff;
+            border: none;
+            padding: 6px 12px;
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            font-weight: bold;
+            border-radius: 4px;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
 
         /* HERO SECTION */
         .hero-section {
@@ -135,7 +150,7 @@
             letter-spacing: 1px;
         }
 
-        /* Telemetry Ticker Bar + Countdown Timer */
+        /* Telemetry Ticker Bar */
         .ticker-bar {
             margin-top: 30px;
             display: inline-flex;
@@ -153,7 +168,7 @@
         .ticker-val { font-size: 1.1rem; color: var(--telemetry-green); font-weight: bold; }
         .ticker-val.timer { color: var(--mclaren-red); }
 
-        /* 3D CAR SECTION WITH OVERLAY CANVAS */
+        /* 3D CAR SECTION WITH OVERLAY CANVAS & HOTSPOTS */
         .car-section {
             position: relative;
             width: 100vw;
@@ -174,7 +189,48 @@
             filter: hue-rotate(180deg) contrast(200%) saturate(300%);
         }
 
-        /* OPTION 2: Dynamic Vector Overlay Canvas */
+        /* 3D Interactive Hotspot Nodes */
+        .hotspot {
+            display: block;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            border: 2px solid var(--telemetry-green);
+            background: rgba(0, 255, 102, 0.3);
+            box-shadow: 0 0 10px var(--telemetry-green);
+            cursor: pointer;
+            position: relative;
+            transition: transform 0.2s;
+        }
+
+        .hotspot:hover {
+            transform: scale(1.3);
+            background: var(--telemetry-green);
+        }
+
+        .hotspot-annotation {
+            position: absolute;
+            bottom: 25px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 200px;
+            background: rgba(10, 10, 10, 0.95);
+            border: 1px solid var(--telemetry-green);
+            color: #fff;
+            padding: 8px 10px;
+            border-radius: 6px;
+            font-family: var(--font-mono);
+            font-size: 0.7rem;
+            line-height: 1.3;
+            pointer-events: none;
+            display: none;
+            box-shadow: 0 0 15px rgba(0, 255, 102, 0.3);
+        }
+
+        .hotspot:hover .hotspot-annotation {
+            display: block;
+        }
+
         #cfd-overlay {
             position: absolute;
             top: 0;
@@ -273,6 +329,37 @@
             font-size: 0.88rem;
             color: #aaa;
             line-height: 1.5;
+        }
+
+        /* Mass-to-Time Calculator Inputs */
+        .calc-group {
+            margin-top: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            font-family: var(--font-mono);
+        }
+
+        .calc-group label {
+            font-size: 0.75rem;
+            color: #888;
+            text-transform: uppercase;
+        }
+
+        .calc-group input {
+            background: #222;
+            border: 1px solid rgba(255,255,255,0.2);
+            color: var(--telemetry-green);
+            padding: 8px;
+            font-family: var(--font-mono);
+            border-radius: 4px;
+        }
+
+        .calc-result {
+            margin-top: 10px;
+            font-family: var(--font-mono);
+            font-size: 0.9rem;
+            color: #fff;
         }
 
         /* Dynamic Donut Chart Styling */
@@ -409,6 +496,19 @@
             outline: 1px dashed var(--telemetry-green) !important;
             background: rgba(0, 255, 102, 0.05);
         }
+
+        /* PRINT STYLES FOR ONE-CLICK JUDGE PDF EXPORT */
+        @media print {
+            nav, .cfd-toggle-btn, .admin-panel, .smoke-overlay { display: none !important; }
+            body { background: #ffffff !important; color: #000000 !important; }
+            .content-section, .hero-section, .car-section { padding: 15px !important; border: none !important; background: #fff !important; }
+            .telemetry-card { border: 1px solid #ccc !important; background: #fff !important; color: #000 !important; }
+            .telemetry-card p, td { color: #222 !important; }
+            th, .section-header, .hero-title span { color: #e60000 !important; }
+            .ticker-bar { background: #f4f4f4 !important; border: 1px solid #ccc !important; }
+            .ticker-val { color: #008800 !important; }
+            .donut-hole { background: #ffffff !important; }
+        }
     </style>
 </head>
 <body>
@@ -422,6 +522,7 @@
             <li><a href="#engineering">30g Specs</a></li>
             <li><a href="#wallstreet">Pitcoin Dashboard</a></li>
             <li><a href="#pitwall">Pit Wall</a></li>
+            <li><button class="pdf-btn" onclick="window.print()">Export Judge Sheet PDF</button></li>
         </ul>
     </nav>
 
@@ -460,7 +561,7 @@
         </div>
     </section>
 
-    <!-- 3D CAR SECTION WITH HEATMAP & DYNAMIC CFD VECTOR OVERLAY -->
+    <!-- 3D CAR SECTION WITH HOTSPOT NODES & CFD OVERLAY -->
     <section class="car-section" id="car-view">
         <button class="cfd-toggle-btn" id="heatmap-btn">Toggle CFD Pressure & Airflow Vectors</button>
         
@@ -472,6 +573,31 @@
             camera-controls 
             shadow-intensity="1.5"
             exposure="1.0">
+
+            <!-- Interactive 3D Hotspot Nodes -->
+            <button class="hotspot" slot="hotspot-front-nose" data-position="0m 0.15m 1.6m" data-normal="0m 0m 1m">
+                <div class="hotspot-annotation">
+                    <strong>Front Nose Cone</strong><br>
+                    Cd: 0.115 | Pressure: +1.42 kPa<br>
+                    Stagnation Point & Low Profile
+                </div>
+            </button>
+
+            <button class="hotspot" slot="hotspot-sidepod" data-position="0.5m 0.2m 0m" data-normal="1m 0m 0m">
+                <div class="hotspot-annotation">
+                    <strong>Scalloped Sidepod</strong><br>
+                    Undercut Velocity: 24.8 m/s<br>
+                    Direct Radiator Duct Flow
+                </div>
+            </button>
+
+            <button class="hotspot" slot="hotspot-rear-wing" data-position="0m 0.45m -1.4m" data-normal="0m 1m 0m">
+                <div class="hotspot-annotation">
+                    <strong>Rear Airfoil Wing</strong><br>
+                    Downforce: 0.84 N @ 20 m/s<br>
+                    Low-Vortex Endplate Recess
+                </div>
+            </button>
         </model-viewer>
 
         <!-- Overlay Canvas for Particle Vector Stream -->
@@ -480,7 +606,7 @@
         <div class="smoke-overlay"></div>
     </section>
 
-    <!-- THE GARAGE: ENGINEERING & CFD -->
+    <!-- THE GARAGE: ENGINEERING, CFD & MASS TELEMETRY CALCULATOR -->
     <section class="content-section" id="engineering">
         <h2 class="section-header">The Garage // Engineering & CFD</h2>
         <div class="telemetry-grid">
@@ -504,6 +630,20 @@
                         <tr><td class="highlight">Total Dry Target</td><td class="highlight">Legal Cutoff Limit</td><td class="highlight">31.2g</td></tr>
                     </tbody>
                 </table>
+            </div>
+
+            <!-- Mass-to-Time Telemetry Calculator -->
+            <div class="telemetry-card">
+                <h3>Mass-to-Time 20m Track Calculator</h3>
+                <p>Simulate 20m track timing based on scrutineering mass variation.</p>
+                <div class="calc-group">
+                    <label>Tested Car Mass (Grams)</label>
+                    <input type="number" id="calc-mass-input" value="51.2" step="0.1" min="45" max="65">
+                </div>
+                <div class="calc-result">
+                    Estimated Finish: <span class="highlight" id="calc-time-output">1.024s</span><br>
+                    <span style="font-size:0.75rem; color:#aaa;">Delta vs. 50g Baseline: <span id="calc-delta-output">+0.00ms</span></span>
+                </div>
             </div>
         </div>
     </section>
@@ -554,7 +694,7 @@
         </div>
     </section>
 
-    <!-- SECRET ADMIN CONTROL PANEL -->
+    <!-- SECRET ADMIN CONTROL PANEL WITH WIND TUNNEL SPEED SLIDER -->
     <div class="admin-panel" id="admin-panel">
         <div class="admin-header">
             <h2>Telemetry Controls</h2>
@@ -575,6 +715,11 @@
             <input type="number" id="input-mkt" value="20">
         </div>
 
+        <div class="admin-group">
+            <label>Wind Tunnel CFD Velocity Multiplier</label>
+            <input type="range" id="input-wind-speed" min="1" max="15" value="5">
+        </div>
+
         <button class="edit-toggle-btn" id="toggle-universal-edit">Enable Universal Text Edit Mode</button>
     </div>
 
@@ -589,8 +734,9 @@
             cfdCanvas.classList.toggle('active');
         });
 
-        // 2. OPTION 2: HTML5 Canvas Multi-colored Airflow Vector Stream Engine
+        // 2. Wind Tunnel Velocity Control & HTML5 Canvas CFD Vector Engine
         const ctx = cfdCanvas.getContext('2d');
+        const windSpeedInput = document.getElementById('input-wind-speed');
         
         function resizeCfdCanvas() {
             cfdCanvas.width = cfdCanvas.offsetWidth;
@@ -599,30 +745,27 @@
         resizeCfdCanvas();
         window.addEventListener('resize', resizeCfdCanvas);
 
-        // Generate particle flow points
-        const particleCount = 60;
+        const particleCount = 65;
         const particles = Array.from({ length: particleCount }, () => ({
             x: Math.random() * cfdCanvas.width * 0.8 + cfdCanvas.width * 0.1,
             y: Math.random() * cfdCanvas.height * 0.5 + cfdCanvas.height * 0.25,
-            speed: 4 + Math.random() * 5,
-            size: 6 + Math.random() * 6
+            baseSpeed: 1 + Math.random() * 1.5,
+            size: 6 + Math.random() * 5
         }));
 
         function renderCFDFlow() {
             ctx.clearRect(0, 0, cfdCanvas.width, cfdCanvas.height);
 
             if (cfdCanvas.classList.contains('active')) {
+                const speedMultiplier = parseFloat(windSpeedInput.value) || 5;
+
                 particles.forEach(p => {
-                    p.x -= p.speed; // Stream flow backwards over chassis
+                    p.x -= p.baseSpeed * (speedMultiplier * 0.5);
                     if (p.x < cfdCanvas.width * 0.15) {
                         p.x = cfdCanvas.width * 0.85;
                         p.y = Math.random() * cfdCanvas.height * 0.5 + cfdCanvas.height * 0.25;
                     }
 
-                    // Multi-colored flow mapping
-                    // Front nose high pressure = Red (#e60000)
-                    // Mid chassis flow = Green (#00ff66)
-                    // Rear wake low pressure = Silver/Blue (#888888)
                     let arrowColor = "#00ff66";
                     if (p.x > cfdCanvas.width * 0.65) {
                         arrowColor = "#e60000";
@@ -636,7 +779,6 @@
                     ctx.shadowBlur = 12;
                     ctx.shadowColor = arrowColor;
 
-                    // Draw flow arrow cone
                     ctx.beginPath();
                     ctx.moveTo(-p.size * 1.5, 0);
                     ctx.lineTo(0, -p.size / 2);
@@ -644,7 +786,6 @@
                     ctx.closePath();
                     ctx.fill();
 
-                    // Arrow tail line
                     ctx.strokeStyle = arrowColor;
                     ctx.lineWidth = 2;
                     ctx.beginPath();
@@ -660,7 +801,27 @@
         }
         renderCFDFlow();
 
-        // 3. Live Countdown Timer Script
+        // 3. Mass-to-Time Telemetry Calculator Script
+        const massInput = document.getElementById('calc-mass-input');
+        const timeOutput = document.getElementById('calc-time-output');
+        const deltaOutput = document.getElementById('calc-delta-output');
+
+        function updateMassCalc() {
+            const mass = parseFloat(massInput.value) || 50.0;
+            const baseMass = 50.0;
+            const baseTime = 1.000; // Baseline 1.000s for 50g
+
+            // Physics approximation: t ~ sqrt(m / m_base)
+            const calculatedTime = baseTime * Math.sqrt(mass / baseMass);
+            const deltaMs = (calculatedTime - baseTime) * 1000;
+
+            timeOutput.innerText = calculatedTime.toFixed(3) + 's';
+            deltaOutput.innerText = (deltaMs >= 0 ? '+' : '') + deltaMs.toFixed(2) + 'ms';
+            deltaOutput.style.color = deltaMs <= 0 ? 'var(--telemetry-green)' : 'var(--mclaren-red)';
+        }
+        massInput.addEventListener('input', updateMassCalc);
+
+        // 4. Live Countdown Timer Script
         const targetDate = new Date().getTime() + (14 * 24 * 60 * 60 * 1000);
         setInterval(() => {
             const now = new Date().getTime();
@@ -673,7 +834,7 @@
                 `${days}d ${hours}h ${minutes}m ${seconds}s`;
         }, 1000);
 
-        // 4. Dynamic Editable Pie/Donut Chart Logic
+        // 5. Dynamic Editable Pie/Donut Chart Logic
         const inputAero = document.getElementById('input-aero');
         const inputMfg = document.getElementById('input-mfg');
         const inputMkt = document.getElementById('input-mkt');
@@ -704,7 +865,7 @@
         inputMfg.addEventListener('input', updateChart);
         inputMkt.addEventListener('input', updateChart);
 
-        // 5. Admin Key Sequence ('121988') & Universal Text Edit Toggle
+        // 6. Admin Key Sequence ('121988') & Universal Text Edit Toggle
         const sequence = ['1', '2', '1', '9', '8', '8'];
         let keyHistory = [];
         const adminPanel = document.getElementById('admin-panel');
