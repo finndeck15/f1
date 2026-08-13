@@ -319,7 +319,7 @@
             position: relative;
             width: 480px;
             height: 600px;
-            background: #222;
+            background: #181818;
             border: 4px solid #333;
             border-radius: 8px;
             overflow: hidden;
@@ -343,14 +343,19 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: center;
-            background-size: cover;
+            justify-content: space-between;
+            padding: 25px 0;
+            background-size: contain;
+            background-repeat: no-repeat;
             background-position: center;
+            background-color: #000;
             z-index: 30;
         }
 
         #titleScreen {
             background-image: url('Title screen.png');
+            background-size: cover;
+            justify-content: center;
         }
 
         #gameOverScreen {
@@ -358,42 +363,34 @@
             display: none;
         }
 
-        .game-screen-overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.4);
-            z-index: -1;
-        }
-
         .play-btn-img {
-            width: 90px;
-            height: 90px;
+            width: 80px;
+            height: 80px;
             cursor: pointer;
             transition: transform 0.15s ease;
-            filter: drop-shadow(0 0 10px rgba(230, 0, 0, 0.8));
+            filter: drop-shadow(0 0 10px rgba(230, 0, 0, 0.9));
         }
 
         .play-btn-img:hover {
-            transform: scale(1.1);
+            transform: scale(1.12);
         }
 
-        .game-over-text-box {
+        .game-over-banner {
             background: rgba(0, 0, 0, 0.85);
             border: 2px solid var(--mclaren-red);
-            padding: 20px 30px;
-            border-radius: 8px;
+            padding: 12px 25px;
+            border-radius: 6px;
             text-align: center;
             font-family: var(--font-mono);
+            backdrop-filter: blur(4px);
+            box-shadow: 0 0 15px rgba(230, 0, 0, 0.5);
         }
 
-        .game-over-text-box h3 {
+        .game-over-banner h3 {
             color: var(--mclaren-red);
-            font-size: 1.5rem;
-            margin-bottom: 10px;
+            font-size: 1.3rem;
             text-transform: uppercase;
+            margin-bottom: 4px;
         }
 
         /* Custom Pixel Slider Controls */
@@ -720,7 +717,7 @@
 
     <!-- PIXEL ART ARCADE GAME SECTION -->
     <section class="content-section" id="arcade">
-        <h2 class="section-header">Arcade Arena // MP4/4 Obstacle Sprint</h2>
+        <h2 class="section-header">Arcade Arena // Dynamic Track Sprint</h2>
         
         <div class="game-wrapper">
             <div class="game-container">
@@ -729,18 +726,17 @@
 
                 <!-- TITLE SCREEN OVERLAY -->
                 <div class="game-screen" id="titleScreen">
-                    <div class="game-screen-overlay"></div>
+                    <div></div>
                     <img src="play button.png" alt="Play Game" class="play-btn-img" id="startBtn">
                 </div>
 
-                <!-- GAME OVER SCREEN OVERLAY -->
+                <!-- GAME OVER SCREEN OVERLAY (Full Unblocked Image) -->
                 <div class="game-screen" id="gameOverScreen">
-                    <div class="game-screen-overlay"></div>
-                    <div class="game-over-text-box">
+                    <div class="game-over-banner">
                         <h3>SKIDDED OUT!</h3>
-                        <p style="font-size: 0.85rem; color: #ddd; margin-bottom: 15px;">TOTAL OBSTACLES DODGED: <span id="finalScore" style="color:var(--telemetry-green); font-weight:bold;">0</span></p>
-                        <img src="play button.png" alt="Replay Game" class="play-btn-img" id="restartBtn">
+                        <p style="font-size: 0.8rem; color: #ddd;">TOTAL OBSTACLES DODGED: <span id="finalScore" style="color:var(--telemetry-green); font-weight:bold;">0</span></p>
                     </div>
+                    <img src="play button.png" alt="Replay Game" class="play-btn-img" id="restartBtn">
                 </div>
 
                 <!-- Canvas Engine -->
@@ -919,41 +915,73 @@
         const steerSlider = document.getElementById('carSteerSlider');
         const sliderKnob = document.getElementById('sliderKnob');
 
-        // Asset Loader
+        // Raw Asset Declarations
         const imgPlayer = new Image(); imgPlayer.src = 'Pixel_art_car.png';
-        const imgOtherCar = new Image(); imgOtherCar.src = 'other car.jpeg';
+        const imgRawOpponent = new Image(); imgRawOpponent.src = 'other car.jpeg';
         const imgTyre = new Image(); imgTyre.src = 'tyre.png';
+
+        // Processed Opponent Car Canvas (Dynamic White Background Removal)
+        let processedOpponentCanvas = null;
+        imgRawOpponent.onload = () => {
+            const offscreen = document.createElement('canvas');
+            offscreen.width = imgRawOpponent.width;
+            offscreen.height = imgRawOpponent.height;
+            const oCtx = offscreen.getContext('2d');
+            oCtx.drawImage(imgRawOpponent, 0, 0);
+
+            const imgData = oCtx.getImageData(0, 0, offscreen.width, offscreen.height);
+            const data = imgData.data;
+            for (let i = 0; i < data.length; i += 4) {
+                // Remove white / light grey pixels
+                if (data[i] > 195 && data[i+1] > 195 && data[i+2] > 195) {
+                    data[i+3] = 0; // Set Alpha to transparent
+                }
+            }
+            oCtx.putImageData(imgData, 0, 0);
+            processedOpponentCanvas = offscreen;
+        };
 
         let gameState = 'TITLE'; // TITLE, PLAYING, GAMEOVER
         let score = 0;
-        let animationFrameId;
+        let frameCounter = 0;
 
-        // Player Attributes
+        // Player Physical Dimensions
         const player = {
-            x: gCanvas.width / 2 - 25,
+            x: gCanvas.width / 2 - 20,
             y: gCanvas.height - 120,
-            width: 50,
-            height: 95
+            width: 40,
+            height: 80
         };
 
-        // Track & Obstacles
         let obstacles = [];
         let roadOffset = 0;
         let spawnTimer = 0;
+
+        // Dynamic Track Narrowing / Widening Logic
+        function getTrackBounds(y, frame) {
+            // Smooth sine wave narrowing & widening calculation
+            const wave = Math.sin((frame + y * 0.5) * 0.015);
+            const currentTrackWidth = 260 + wave * 70; // Width varies between 190px and 330px
+            const centerX = gCanvas.width / 2;
+            
+            const left = centerX - currentTrackWidth / 2;
+            const right = centerX + currentTrackWidth / 2;
+            return { left, right, width: currentTrackWidth };
+        }
 
         function updateSliderUI() {
             const val = steerSlider.value;
             sliderKnob.style.left = val + '%';
             if (gameState === 'PLAYING') {
-                const trackMin = 80;
-                const trackMax = gCanvas.width - 80 - player.width;
-                player.x = trackMin + (val / 100) * (trackMax - trackMin);
+                const bounds = getTrackBounds(player.y, frameCounter);
+                const trackMin = bounds.left + 20;
+                const trackMax = bounds.right - 20 - player.width;
+                player.x = trackMin + (val / 100) * Math.max(10, (trackMax - trackMin));
             }
         }
 
         steerSlider.addEventListener('input', updateSliderUI);
 
-        // Keyboard Arrow Controls Integration
         window.addEventListener('keydown', (e) => {
             if (gameState !== 'PLAYING') return;
             let currentVal = parseInt(steerSlider.value);
@@ -968,14 +996,15 @@
 
         function resetGame() {
             score = 0;
+            frameCounter = 0;
             scoreVal.innerText = score;
             obstacles = [];
             steerSlider.value = 50;
-            updateSliderUI();
             gameState = 'PLAYING';
             titleScreen.style.display = 'none';
             gameOverScreen.style.display = 'none';
             scoreHud.style.display = 'block';
+            updateSliderUI();
             gameLoop();
         }
 
@@ -983,58 +1012,93 @@
         restartBtn.addEventListener('click', resetGame);
 
         function spawnObstacle() {
-            const isTyre = Math.random() > 0.5;
-            const laneX = 85 + Math.random() * (gCanvas.width - 170 - 45);
+            const isTyre = Math.random() > 0.45;
+            const bounds = getTrackBounds(0, frameCounter);
+            
+            // Enlarge Tyre dimensions (60x60) for clear hazard visibility
+            const obsWidth = isTyre ? 60 : 45;
+            const obsHeight = isTyre ? 60 : 85;
+            
+            const spawnX = bounds.left + 15 + Math.random() * (bounds.width - 30 - obsWidth);
+            
             obstacles.push({
-                x: laneX,
+                x: spawnX,
                 y: -100,
-                width: isTyre ? 38 : 45,
-                height: isTyre ? 38 : 85,
+                width: obsWidth,
+                height: obsHeight,
                 type: isTyre ? 'TYRE' : 'CAR',
-                speed: 3 + Math.random() * 3
+                speed: 3.5 + Math.random() * 2.5
             });
         }
 
         function gameLoop() {
             if (gameState !== 'PLAYING') return;
+            frameCounter++;
 
-            // Clear Background
-            gCtx.fillStyle = '#1e2022';
+            // Clear Background Grass
+            gCtx.fillStyle = '#1e380c';
             gCtx.fillRect(0, 0, gCanvas.width, gCanvas.height);
 
-            // Draw Scrolling Asphalt Track & Curbs
-            roadOffset = (roadOffset + 6) % 40;
+            roadOffset = (roadOffset + 6) % 30;
 
-            // Grass Sides
-            gCtx.fillStyle = '#2b580c';
-            gCtx.fillRect(0, 0, 70, gCanvas.height);
-            gCtx.fillRect(gCanvas.width - 70, 0, 70, gCanvas.height);
-
-            // Red/White Curbs
-            for (let y = -40 + roadOffset; y < gCanvas.height; y += 40) {
-                gCtx.fillStyle = (Math.floor((y - roadOffset) / 40) % 2 === 0) ? '#e60000' : '#ffffff';
-                gCtx.fillRect(60, y, 10, 40);
-                gCtx.fillRect(gCanvas.width - 70, y, 10, 40);
+            // Render Dynamic Road Asphalt & Border Tyre Walls
+            for (let y = 0; y < gCanvas.height; y += 10) {
+                const bounds = getTrackBounds(y, frameCounter);
+                
+                // Dark Asphalt Road Surface
+                gCtx.fillStyle = '#222224';
+                gCtx.fillRect(bounds.left, y, bounds.width, 10);
             }
 
-            // Lane Dividers
-            gCtx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
-            gCtx.setLineDash([20, 20]);
+            // Render Tyre Wall Borders
+            const borderTyreSize = 28;
+            for (let y = -30 + roadOffset; y < gCanvas.height + 30; y += borderTyreSize) {
+                const bounds = getTrackBounds(y, frameCounter);
+                
+                // Left Tyre Wall
+                gCtx.drawImage(imgTyre, bounds.left - borderTyreSize / 2, y, borderTyreSize, borderTyreSize);
+                // Right Tyre Wall
+                gCtx.drawImage(imgTyre, bounds.right - borderTyreSize / 2, y, borderTyreSize, borderTyreSize);
+            }
+
+            // Center Lane Dashers
+            gCtx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
+            gCtx.setLineDash([18, 18]);
             gCtx.lineDashOffset = -roadOffset;
             gCtx.lineWidth = 3;
 
             gCtx.beginPath();
-            gCtx.moveTo(gCanvas.width / 2, 0);
-            gCtx.lineTo(gCanvas.width / 2, gCanvas.height);
+            for (let y = 0; y < gCanvas.height; y += 20) {
+                const bounds = getTrackBounds(y, frameCounter);
+                const centerX = (bounds.left + bounds.right) / 2;
+                if (y === 0) gCtx.moveTo(centerX, y);
+                else gCtx.lineTo(centerX, y);
+            }
             gCtx.stroke();
             gCtx.setLineDash([]);
 
-            // Draw Player Car
-            gCtx.drawImage(imgPlayer, player.x, player.y, player.width, player.height);
+            // Clamp Player to Track Limits
+            const playerBounds = getTrackBounds(player.y, frameCounter);
+            if (player.x < playerBounds.left + 5 || player.x + player.width > playerBounds.right - 5) {
+                // Out of Bounds Crash
+                gameState = 'GAMEOVER';
+                finalScore.innerText = score;
+                gameOverScreen.style.display = 'flex';
+                scoreHud.style.display = 'none';
+                return;
+            }
 
-            // Manage Obstacles
+            // DRAW PLAYER CAR (Rotated -90 degrees so it faces upwards upright)
+            gCtx.save();
+            gCtx.translate(player.x + player.width / 2, player.y + player.height / 2);
+            gCtx.rotate(-Math.PI / 2);
+            // Draw centered around origin
+            gCtx.drawImage(imgPlayer, -player.height / 2, -player.width / 2, player.height, player.width);
+            gCtx.restore();
+
+            // Spawn & Manage Obstacles
             spawnTimer++;
-            if (spawnTimer > 50) {
+            if (spawnTimer > 45) {
                 spawnObstacle();
                 spawnTimer = 0;
             }
@@ -1043,21 +1107,24 @@
                 let obs = obstacles[i];
                 obs.y += obs.speed + 3;
 
-                // Draw Obstacle Asset
+                // Draw Obstacles
                 if (obs.type === 'TYRE') {
                     gCtx.drawImage(imgTyre, obs.x, obs.y, obs.width, obs.height);
                 } else {
-                    gCtx.drawImage(imgOtherCar, obs.x, obs.y, obs.width, obs.height);
+                    if (processedOpponentCanvas) {
+                        gCtx.drawImage(processedOpponentCanvas, obs.x, obs.y, obs.width, obs.height);
+                    } else {
+                        gCtx.drawImage(imgRawOpponent, obs.x, obs.y, obs.width, obs.height);
+                    }
                 }
 
-                // Collision Detection (Bounding Box)
+                // Collision Detection Box
                 if (
                     player.x < obs.x + obs.width &&
                     player.x + player.width > obs.x &&
                     player.y < obs.y + obs.height &&
                     player.y + player.height > obs.y
                 ) {
-                    // Trigger Game Over
                     gameState = 'GAMEOVER';
                     finalScore.innerText = score;
                     gameOverScreen.style.display = 'flex';
@@ -1065,7 +1132,7 @@
                     return;
                 }
 
-                // Passed Obstacle Scoring
+                // Score Tracking
                 if (obs.y > gCanvas.height) {
                     score++;
                     scoreVal.innerText = score;
@@ -1073,7 +1140,7 @@
                 }
             }
 
-            animationFrameId = requestAnimationFrame(gameLoop);
+            requestAnimationFrame(gameLoop);
         }
 
         // --- 2. CFD HEATMAP & VECTOR OVERLAY ---
