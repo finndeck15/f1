@@ -1,11 +1,391 @@
-<script>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>McLaren F1 Telemetry & Arcade</title>
+    <style>
+        :root {
+            --mclaren-red: #ff1801;
+            --telemetry-green: #00ff66;
+            --engine-silver: #a6a6a6;
+            --bg-dark: #0a0a0c;
+            --card-bg: #141418;
+            --border-color: #2a2a32;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            user-select: none;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: #fff;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+        }
+
+        /* Top Bar / Ticker */
+        .ticker-bar {
+            width: 100%;
+            max-width: 900px;
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            padding: 10px 20px;
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .ticker-val {
+            color: var(--telemetry-green);
+            font-weight: bold;
+            font-family: monospace;
+            font-size: 1.1rem;
+        }
+
+        /* Main Game Layout */
+        .game-container {
+            position: relative;
+            width: 100%;
+            max-width: 450px;
+            height: 600px;
+            background: #000;
+            border: 3px solid var(--border-color);
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8);
+        }
+
+        canvas#gameCanvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+            touch-action: none;
+        }
+
+        /* UI Overlays */
+        .overlay-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(10, 10, 12, 0.9);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+            z-index: 10;
+        }
+
+        .overlay-title {
+            color: var(--mclaren-red);
+            font-size: 2rem;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            text-align: center;
+        }
+
+        .btn-action {
+            background: var(--mclaren-red);
+            color: #fff;
+            border: none;
+            padding: 12px 28px;
+            font-size: 1rem;
+            font-weight: bold;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: transform 0.1s, background 0.2s;
+        }
+
+        .btn-action:hover {
+            background: #e01400;
+            transform: scale(1.05);
+        }
+
+        /* Controls Area */
+        .controls-area {
+            width: 100%;
+            max-width: 450px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .steer-slider-wrap {
+            position: relative;
+            width: 100%;
+            height: 30px;
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 15px;
+            display: flex;
+            align-items: center;
+            padding: 0 5px;
+        }
+
+        input[type=range]#carSteerSlider {
+            width: 100%;
+            opacity: 0;
+            position: absolute;
+            z-index: 2;
+            cursor: pointer;
+            height: 100%;
+        }
+
+        .slider-knob {
+            position: absolute;
+            width: 30px;
+            height: 22px;
+            background: var(--mclaren-red);
+            border-radius: 11px;
+            left: 50%;
+            transform: translateX(-50%);
+            pointer-events: none;
+            transition: left 0.05s ease-out;
+        }
+
+        /* Lower Telemetry Dashboard */
+        .dashboard-grid {
+            width: 100%;
+            max-width: 900px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+        }
+
+        .dash-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .card-header {
+            font-size: 0.9rem;
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 5px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        /* Viewer & Heatmap */
+        .car-viewer-box {
+            position: relative;
+            width: 100%;
+            height: 150px;
+            background: #000;
+            border-radius: 6px;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .car-viewer-box.heatmap-active {
+            filter: hue-rotate(180deg) contrast(150%);
+        }
+
+        canvas#cfd-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: none;
+            pointer-events: none;
+        }
+
+        canvas#cfd-overlay.active {
+            display: block;
+        }
+
+        /* Budget Donut */
+        .donut-chart {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            margin: 0 auto;
+            background: conic-gradient(var(--mclaren-red) 0% 40%, var(--telemetry-green) 40% 75%, var(--engine-silver) 75% 100%);
+        }
+
+        /* Admin / Secret Panel */
+        .admin-panel {
+            display: none;
+            width: 100%;
+            max-width: 900px;
+            background: #1e0505;
+            border: 1px dashed var(--mclaren-red);
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 20px;
+        }
+
+        .admin-panel.active {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- TOP TELEMETRY TICKER -->
+    <div class="ticker-bar">
+        <div>PITCOIN BALANCE: <span class="ticker-val">₳ 42,500</span></div>
+        <div>NEXT RACE: <span class="ticker-val" id="countdown-timer">00d 00h 00m 00s</span></div>
+    </div>
+
+    <!-- MAIN GAME CANVAS -->
+    <div class="game-container">
+        <canvas id="gameCanvas" width="450" height="600"></canvas>
+
+        <!-- TITLE SCREEN -->
+        <div id="titleScreen" class="overlay-screen">
+            <div class="overlay-title">MCLAREN F1<br>ARCADE</div>
+            <button id="startBtn" class="btn-action">START ENGINE</button>
+        </div>
+
+        <!-- GAMEOVER SCREEN -->
+        <div id="gameOverScreen" class="overlay-screen" style="display: none;">
+            <div class="overlay-title" style="color:#fff;">CRASHED!</div>
+            <div style="font-size: 1.2rem; color: #aaa;">FINAL SCORE: <span id="finalScore" style="color:var(--telemetry-green); font-weight:bold;">0</span></div>
+            <button id="restartBtn" class="btn-action">RESTART</button>
+        </div>
+
+        <!-- HUD SCORE OVERLAY -->
+        <div id="scoreHud" style="position: absolute; top: 15px; left: 15px; display: none; font-size: 1.2rem; font-weight: bold; font-family: monospace;">
+            SCORE: <span id="scoreVal" style="color: var(--telemetry-green);">0</span>
+        </div>
+    </div>
+
+    <!-- STEERING CONTROLS -->
+    <div class="controls-area">
+        <div class="steer-slider-wrap">
+            <input type="range" id="carSteerSlider" min="0" max="100" value="50">
+            <div id="sliderKnob" class="slider-knob"></div>
+        </div>
+        <div style="font-size: 0.8rem; color: #666;">DRAG SLIDER, USE A/D KEYS, OR TOUCH CANVAS TO STEER</div>
+    </div>
+
+    <!-- LOWER DASHBOARD -->
+    <div class="dashboard-grid">
+        
+        <!-- CFD AERODYNAMICS -->
+        <div class="dash-card">
+            <div class="card-header">
+                <span>CFD Aerodynamics</span>
+                <button id="heatmap-btn" style="background:none; border:none; color:var(--telemetry-green); cursor:pointer;">TOGGLE HEATMAP</button>
+            </div>
+            <div id="car-viewer" class="car-viewer-box">
+                <div style="color: #444; font-weight: bold; font-size: 1.5rem;">[ CAR CHASSIS ]</div>
+                <canvas id="cfd-overlay"></canvas>
+            </div>
+            <div style="display: flex; gap: 10px; align-items: center; font-size: 0.8rem; color: #aaa;">
+                <span>WIND TUNNEL SPEED:</span>
+                <input type="range" id="input-wind-speed" min="1" max="10" value="5" style="flex:1;">
+            </div>
+        </div>
+
+        <!-- LAPTIME MASS CALCULATOR -->
+        <div class="dash-card">
+            <div class="card-header">Laptime Mass Calculator</div>
+            <div style="display: flex; flex-direction: column; gap: 10px; font-size: 0.9rem;">
+                <div>
+                    <label>CHASSIS MASS (KG):</label>
+                    <input type="number" id="calc-mass-input" value="50.0" step="0.5" style="width: 100%; background: #000; border: 1px solid var(--border-color); color: #fff; padding: 5px; border-radius: 4px; margin-top: 3px;">
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-top: 5px;">
+                    <span>EST. LAPTIME:</span>
+                    <span id="calc-time-output" style="font-weight: bold; font-family: monospace;">1.000s</span>
+                </div>
+                <div style="display: flex; justify-content: space-between;">
+                    <span>DELTA:</span>
+                    <span id="calc-delta-output" style="font-weight: bold; font-family: monospace; color: var(--telemetry-green);">+0.00ms</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- BUDGET ALLOCATION -->
+        <div class="dash-card">
+            <div class="card-header">Budget Allocation</div>
+            <div class="donut-chart" id="donut-chart"></div>
+            <div style="display: flex; justify-content: space-around; font-size: 0.8rem; text-align: center; margin-top: 5px;">
+                <div>AERO<br><b id="leg-aero" style="color:var(--mclaren-red)">40%</b></div>
+                <div>MFG<br><b id="leg-mfg" style="color:var(--telemetry-green)">35%</b></div>
+                <div>MKT<br><b id="leg-mkt" style="color:var(--engine-silver)">25%</b></div>
+            </div>
+            <div style="display: none;">
+                <input type="number" id="input-aero" value="40">
+                <input type="number" id="input-mfg" value="35">
+                <input type="number" id="input-mkt" value="25">
+            </div>
+        </div>
+
+    </div>
+
+    <!-- SECRET ADMIN PANEL (KEY SEQ: 1-2-1-9-8-8) -->
+    <div id="admin-panel" class="admin-panel">
+        <h3 style="color: var(--mclaren-red); margin-bottom: 10px;">TELEMETRY CONTROL PANEL</h3>
+        <button id="toggle-universal-edit" class="btn-action" style="font-size: 0.8rem; padding: 6px 12px;">Enable Text Edit Mode</button>
+    </div>
+
+    <!-- GAME ENGINE & TELEMETRY SCRIPT -->
+    <script>
         // --- 1. PURE JS 8-BIT AUDIO SYNTHESIZER ---
         const AudioContext = window.AudioContext || window.webkitAudioContext;
         let audioCtx = null;
+        let engineOsc = null;
+        let engineGain = null;
 
         function initAudio() {
             if (!audioCtx) audioCtx = new AudioContext();
             if (audioCtx.state === 'suspended') audioCtx.resume();
+        }
+
+        function startEngineSound() {
+            if (!audioCtx || engineOsc) return;
+            engineOsc = audioCtx.createOscillator();
+            engineGain = audioCtx.createGain();
+            
+            engineOsc.type = 'sawtooth';
+            engineOsc.frequency.setValueAtTime(60, audioCtx.currentTime); 
+            
+            engineGain.gain.setValueAtTime(0.03, audioCtx.currentTime); 
+            
+            engineOsc.connect(engineGain);
+            engineGain.connect(audioCtx.destination);
+            engineOsc.start();
+        }
+
+        function updateEnginePitch(speed) {
+            if (!engineOsc || !audioCtx) return;
+            const pitch = 60 + (speed - 3.5) * 25;
+            engineOsc.frequency.setTargetAtTime(pitch, audioCtx.currentTime, 0.1);
+        }
+
+        function stopEngineSound() {
+            if (engineOsc) {
+                engineOsc.stop();
+                engineOsc.disconnect();
+                engineOsc = null;
+            }
         }
 
         function playSound(type) {
@@ -19,8 +399,8 @@
 
             if (type === 'score') {
                 osc.type = 'square';
-                osc.frequency.setValueAtTime(587.33, now); // D5
-                osc.frequency.setValueAtTime(880, now + 0.05); // A5
+                osc.frequency.setValueAtTime(587.33, now);
+                osc.frequency.setValueAtTime(880, now + 0.05);
                 gain.gain.setValueAtTime(0.08, now);
                 gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
                 osc.start(now);
@@ -33,8 +413,14 @@
                 gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
                 osc.start(now);
                 osc.stop(now + 0.25);
+            } else if (type === 'radio') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(1200, now);
+                gain.gain.setValueAtTime(0.05, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+                osc.start(now);
+                osc.stop(now + 0.08);
             } else if (type === 'crash') {
-                // White noise burst for retro crash
                 const bufferSize = audioCtx.sampleRate * 0.3;
                 const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
                 const output = buffer.getChannelData(0);
@@ -74,12 +460,11 @@
         const steerSlider = document.getElementById('carSteerSlider');
         const sliderKnob = document.getElementById('sliderKnob');
 
-        // Image Assets
+        // Asset Declarations
         const imgPlayer = new Image(); imgPlayer.src = 'Pixel_art_car.png';
         const imgRawOpponent = new Image(); imgRawOpponent.src = 'other car.jpeg';
         const imgTyre = new Image(); imgTyre.src = 'tyre.png';
 
-        // Processed Transparent Opponent Car
         let processedOpponentCanvas = null;
         imgRawOpponent.onload = () => {
             const offscreen = document.createElement('canvas');
@@ -97,17 +482,34 @@
             processedOpponentCanvas = offscreen;
         };
 
-        // Game State Variables
         let gameState = 'TITLE';
         let score = 0;
         let pitcoinBalance = 42500;
         let frameCounter = 0;
         let baseSpeed = 3.5;
-        let drsTimer = 0; // Invulnerability frames
-        let particles = [];
-        let skidMarks = [];
+        let drsTimer = 0;
+        let targetSliderVal = 50;
 
-        // Leaderboard State (Local Storage)
+        // Rain & Weather System
+        let isRaining = false;
+        let rainDrops = Array.from({ length: 45 }, () => ({
+            x: Math.random() * gCanvas.width,
+            y: Math.random() * gCanvas.height,
+            speed: 10 + Math.random() * 8,
+            length: 12 + Math.random() * 8
+        }));
+
+        // Pit Wall Radio System
+        let radioMessage = "";
+        let radioTimer = 0;
+
+        function triggerRadio(msg) {
+            radioMessage = msg;
+            radioTimer = 150;
+            playSound('radio');
+        }
+
+        // Leaderboard State
         let leaderboard = JSON.parse(localStorage.getItem('mclaren_f1_leaderboard')) || [
             { tag: 'SEN', score: 32 },
             { tag: 'PRO', score: 28 },
@@ -129,6 +531,7 @@
         };
 
         let obstacles = [];
+        let skidMarks = [];
         let roadOffset = 0;
         let spawnTimer = 0;
 
@@ -150,7 +553,30 @@
             }
         }
 
-        steerSlider.addEventListener('input', updateSliderUI);
+        steerSlider.addEventListener('input', () => {
+            targetSliderVal = parseFloat(steerSlider.value);
+            if (!isRaining) updateSliderUI();
+        });
+
+        // Touch & Pointer Direct Steering
+        let isDragging = false;
+        function handlePointerMove(clientX) {
+            if (gameState !== 'PLAYING') return;
+            const rect = gCanvas.getBoundingClientRect();
+            const relativeX = clientX - rect.left;
+            const pct = Math.min(100, Math.max(0, (relativeX / rect.width) * 100));
+            targetSliderVal = pct;
+            steerSlider.value = pct;
+            if (!isRaining) updateSliderUI();
+        }
+
+        gCanvas.addEventListener('mousedown', (e) => { isDragging = true; handlePointerMove(e.clientX); });
+        window.addEventListener('mousemove', (e) => { if (isDragging) handlePointerMove(e.clientX); });
+        window.addEventListener('mouseup', () => { isDragging = false; });
+
+        gCanvas.addEventListener('touchstart', (e) => { isDragging = true; handlePointerMove(e.touches[0].clientX); });
+        window.addEventListener('touchmove', (e) => { if (isDragging) handlePointerMove(e.touches[0].clientX); });
+        window.addEventListener('touchend', () => { isDragging = false; });
 
         window.addEventListener('keydown', (e) => {
             if (gameState !== 'PLAYING') return;
@@ -158,23 +584,28 @@
             if (e.key === 'ArrowLeft' || e.key === 'a') currentVal = Math.max(0, currentVal - 5);
             else if (e.key === 'ArrowRight' || e.key === 'd') currentVal = Math.min(100, currentVal + 5);
             steerSlider.value = currentVal;
-            updateSliderUI();
+            targetSliderVal = currentVal;
+            if (!isRaining) updateSliderUI();
         });
 
         function resetGame() {
             initAudio();
+            startEngineSound();
             score = 0;
             frameCounter = 0;
             baseSpeed = 3.5;
             drsTimer = 0;
+            isRaining = false;
             scoreVal.innerText = score;
             obstacles = [];
             skidMarks = [];
             steerSlider.value = 50;
+            targetSliderVal = 50;
             gameState = 'PLAYING';
             titleScreen.style.display = 'none';
             gameOverScreen.style.display = 'none';
             scoreHud.style.display = 'block';
+            triggerRadio("RADIO: LETS RACE!");
             updateSliderUI();
             gameLoop();
         }
@@ -208,18 +639,18 @@
         }
 
         function triggerGameOver() {
+            stopEngineSound();
             playSound('crash');
             gameState = 'GAMEOVER';
             finalScore.innerText = score;
 
-            // Prompt for Driver Tag on Leaderboard Highscore
             setTimeout(() => {
                 const tag = prompt(`SKIDDED OUT!\nYour Score: ${score}\nEnter 3-Letter Driver Initials for the Leaderboard:`, "MCU");
                 if (tag) {
                     const cleanTag = tag.toUpperCase().substring(0, 3);
                     leaderboard.push({ tag: cleanTag, score: score });
                     leaderboard.sort((a, b) => b.score - a.score);
-                    leaderboard = leaderboard.slice(0, 5); // Top 5
+                    leaderboard = leaderboard.slice(0, 5);
                     saveLeaderboard();
                 }
                 gameOverScreen.style.display = 'flex';
@@ -231,24 +662,38 @@
             if (gameState !== 'PLAYING') return;
             frameCounter++;
 
-            // Dynamic Speed Escalation
+            // Dynamic Speed & Sound Pitch
             baseSpeed = 3.5 + Math.floor(score / 10) * 0.8;
+            updateEnginePitch(baseSpeed);
 
-            // Background
-            gCtx.fillStyle = '#1a330a';
+            // Toggle Rain Weather Conditions
+            const rainCycle = Math.floor(score / 15) % 2 === 1;
+            if (rainCycle !== isRaining) {
+                isRaining = rainCycle;
+                triggerRadio(isRaining ? "PIT WALL: SLICK CONDITIONS!" : "PIT WALL: TRACK DRYING");
+            }
+
+            // Rainy Steering Physics
+            if (isRaining) {
+                let currentVal = parseFloat(steerSlider.value);
+                steerSlider.value = currentVal + (targetSliderVal - currentVal) * 0.12;
+                updateSliderUI();
+            }
+
+            // Render Field
+            gCtx.fillStyle = isRaining ? '#0d1a05' : '#1a330a';
             gCtx.fillRect(0, 0, gCanvas.width, gCanvas.height);
 
             roadOffset = (roadOffset + baseSpeed + 2) % 30;
 
-            // Render Track
             for (let y = 0; y < gCanvas.height; y += 10) {
                 const bounds = getTrackBounds(y, frameCounter);
-                gCtx.fillStyle = '#222224';
+                gCtx.fillStyle = isRaining ? '#18181a' : '#222224';
                 gCtx.fillRect(bounds.left, y, bounds.width, 10);
             }
 
-            // Skid Mark Trails
-            if (Math.abs(player.x - player.lastX) > 2.5) {
+            // Tire Skid Marks
+            if (Math.abs(player.x - player.lastX) > 2.2) {
                 skidMarks.push({ x: player.x + 8, y: player.y + 65, alpha: 0.6 });
                 skidMarks.push({ x: player.x + player.width - 12, y: player.y + 65, alpha: 0.6 });
             }
@@ -263,7 +708,7 @@
                 if (sm.alpha <= 0) skidMarks.splice(i, 1);
             }
 
-            // Tyre Wall Borders
+            // Render Tyre Borders
             const borderTyreSize = 28;
             for (let y = -30 + roadOffset; y < gCanvas.height + 30; y += borderTyreSize) {
                 const bounds = getTrackBounds(y, frameCounter);
@@ -286,30 +731,27 @@
             gCtx.stroke();
             gCtx.setLineDash([]);
 
-            // Out-of-bounds Check
+            // Bounds Check
             const playerBounds = getTrackBounds(player.y, frameCounter);
             if (player.x < playerBounds.left + 5 || player.x + player.width > playerBounds.right - 5) {
                 triggerGameOver();
                 return;
             }
 
-            // Draw DRS Aura / Player Car
+            // Draw Player & DRS Aura
             if (drsTimer > 0) drsTimer--;
             
             gCtx.save();
             gCtx.translate(player.x + player.width / 2, player.y + player.height / 2);
-            
             if (drsTimer > 0) {
-                // Rainbow DRS Glow
                 gCtx.shadowBlur = 18;
                 gCtx.shadowColor = `hsl(${(frameCounter * 12) % 360}, 100%, 50%)`;
             }
-
             gCtx.rotate(-Math.PI / 2);
             gCtx.drawImage(imgPlayer, -player.height / 2, -player.width / 2, player.height, player.width);
             gCtx.restore();
 
-            // Obstacle Spawning
+            // Obstacle Spawning & Logic
             spawnTimer++;
             const spawnInterval = Math.max(22, 45 - Math.floor(score / 5) * 3);
             if (spawnTimer > spawnInterval) {
@@ -317,19 +759,16 @@
                 spawnTimer = 0;
             }
 
-            // Obstacle Loop
             for (let i = obstacles.length - 1; i >= 0; i--) {
                 let obs = obstacles[i];
                 obs.y += obs.speed + baseSpeed * 0.5;
 
-                // Render Item / Hazard
                 if (obs.type === 'TYRE') {
                     gCtx.drawImage(imgTyre, obs.x, obs.y, obs.width, obs.height);
                 } else if (obs.type === 'CAR') {
                     if (processedOpponentCanvas) gCtx.drawImage(processedOpponentCanvas, obs.x, obs.y, obs.width, obs.height);
                     else gCtx.drawImage(imgRawOpponent, obs.x, obs.y, obs.width, obs.height);
                 } else if (obs.type === 'DRS') {
-                    // DRS Green Energy Orb
                     gCtx.fillStyle = '#00ff66';
                     gCtx.beginPath();
                     gCtx.arc(obs.x + 17, obs.y + 17, 16, 0, Math.PI * 2);
@@ -338,7 +777,6 @@
                     gCtx.font = 'bold 12px monospace';
                     gCtx.fillText('DRS', obs.x + 6, obs.y + 21);
                 } else if (obs.type === 'FUEL') {
-                    // Pitcoin Gold Fuel Can
                     gCtx.fillStyle = '#ffcc00';
                     gCtx.fillRect(obs.x, obs.y, obs.width, obs.height);
                     gCtx.fillStyle = '#000';
@@ -354,13 +792,15 @@
                     player.y + player.height > obs.y
                 ) {
                     if (obs.type === 'DRS') {
-                        drsTimer = 180; // ~3 seconds @ 60fps
+                        drsTimer = 180;
+                        triggerRadio("RADIO: DRS ENGAGED!");
                         playSound('powerup');
                         obstacles.splice(i, 1);
                         continue;
                     } else if (obs.type === 'FUEL') {
                         pitcoinBalance += 500;
                         document.querySelector('.ticker-val').innerText = `₳ ${pitcoinBalance.toLocaleString()}`;
+                        triggerRadio("RADIO: PITCOIN RECEIVED!");
                         playSound('powerup');
                         obstacles.splice(i, 1);
                         continue;
@@ -370,7 +810,6 @@
                     }
                 }
 
-                // Score Point for Dodging
                 if (obs.y > gCanvas.height) {
                     if (obs.type === 'TYRE' || obs.type === 'CAR') {
                         score++;
@@ -381,7 +820,21 @@
                 }
             }
 
-            // CANVAS HUD: SPEEDOMETER & LEADERBOARD OVERLAY
+            // Render Rain System Particles
+            if (isRaining) {
+                gCtx.strokeStyle = 'rgba(120, 180, 255, 0.6)';
+                gCtx.lineWidth = 1.5;
+                gCtx.beginPath();
+                rainDrops.forEach(r => {
+                    r.y += r.speed;
+                    if (r.y > gCanvas.height) { r.y = -10; r.x = Math.random() * gCanvas.width; }
+                    gCtx.moveTo(r.x, r.y);
+                    gCtx.lineTo(r.x - 2, r.y + r.length);
+                });
+                gCtx.stroke();
+            }
+
+            // SPEEDOMETER HUD
             const calcSpeed = Math.floor(180 + baseSpeed * 12);
             gCtx.fillStyle = 'rgba(0, 0, 0, 0.75)';
             gCtx.fillRect(gCanvas.width - 130, 15, 115, 50);
@@ -392,13 +845,12 @@
             gCtx.font = 'bold 14px monospace';
             gCtx.fillText(`${calcSpeed} MPH`, gCanvas.width - 120, 35);
 
-            // Tachometer RPM Bar
             gCtx.fillStyle = '#333';
             gCtx.fillRect(gCanvas.width - 120, 43, 95, 8);
             gCtx.fillStyle = calcSpeed > 230 ? '#e60000' : '#00ff66';
             gCtx.fillRect(gCanvas.width - 120, 43, Math.min(95, (calcSpeed / 250) * 95), 8);
 
-            // Render Highscore Leaderboard Box on Canvas Top Left
+            // LEADERBOARD OVERLAY
             gCtx.fillStyle = 'rgba(0, 0, 0, 0.75)';
             gCtx.fillRect(15, 50, 130, 95);
             gCtx.fillStyle = '#e60000';
@@ -409,6 +861,21 @@
             leaderboard.forEach((entry, idx) => {
                 gCtx.fillText(`${idx + 1}. ${entry.tag} - ${entry.score}`, 22, 80 + idx * 13);
             });
+
+            // PIT WALL RADIO POPUP
+            if (radioTimer > 0) {
+                radioTimer--;
+                gCtx.fillStyle = 'rgba(10, 10, 10, 0.85)';
+                gCtx.fillRect(gCanvas.width / 2 - 110, 15, 220, 30);
+                gCtx.strokeStyle = 'var(--telemetry-green)';
+                gCtx.strokeRect(gCanvas.width / 2 - 110, 15, 220, 30);
+
+                gCtx.fillStyle = 'var(--telemetry-green)';
+                gCtx.font = 'bold 11px monospace';
+                gCtx.textAlign = 'center';
+                gCtx.fillText(radioMessage, gCanvas.width / 2, 34);
+                gCtx.textAlign = 'left';
+            }
 
             requestAnimationFrame(gameLoop);
         }
@@ -565,3 +1032,5 @@
             editBtn.style.color = isEditingEnabled ? "#000" : "#fff";
         });
     </script>
+</body>
+</html>
