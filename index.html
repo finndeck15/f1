@@ -1,46 +1,1232 @@
-// Add an animated CFD arrow flow over your existing car model
-const arrowCount = 150;
-const arrowGeo = new THREE.ConeGeometry(0.08, 0.3, 6);
-const arrowMat = new THREE.MeshBasicMaterial({ wireframe: false });
-const arrowsMesh = new THREE.InstancedMesh(arrowGeo, arrowMat, arrowCount);
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>McLaren MP4/4 | Telemetry & Arcade Interface</title>
+    <!-- 3D Model Viewer Engine -->
+    <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js"></script>
+    <style>
+        :root {
+            --mclaren-red: #e60000;
+            --telemetry-green: #00ff66;
+            --engine-silver: #888888;
+            --bg-black: #000000;
+            --panel-bg: rgba(18, 18, 18, 0.95);
+            --border-glow: rgba(230, 0, 0, 0.4);
+            --font-mono: "Courier New", Courier, monospace;
+        }
 
-const dummy = new THREE.Object3D();
-const arrowPositions = [];
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
 
-// Initialize vector grid around nose, sidepods, and rear wing
-for (let i = 0; i < arrowCount; i++) {
-    arrowPositions.push({
-        x: (Math.random() - 0.5) * 1.5,
-        y: Math.random() * 1.2 + 0.2,
-        z: (Math.random() * 8) - 4
-    });
-}
+        body {
+            background-color: var(--bg-black);
+            color: #ffffff;
+            overflow-x: hidden;
+        }
 
-function animateCFDFlow() {
-    requestAnimationFrame(animateCFDFlow);
+        /* Top Navigation */
+        nav {
+            position: fixed;
+            top: 0;
+            width: 100%;
+            z-index: 100;
+            background: rgba(0, 0, 0, 0.95);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
 
-    for (let i = 0; i < arrowCount; i++) {
-        let p = arrowPositions[i];
-        p.z += 0.08; // Stream air backwards along chassis
-        if (p.z > 4) p.z = -4; // Reset to front intake
+        .nav-brand {
+            font-size: 1.1rem;
+            font-weight: 900;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
 
-        dummy.position.set(p.x, p.y, p.z);
-        dummy.rotation.x = Math.PI / 2; // Point cone forward
-        dummy.updateMatrix();
+        .nav-brand span { color: var(--mclaren-red); }
 
-        // Color transition: Red (High Pressure Front) -> Green (Flow) -> Silver (Wake)
-        const color = new THREE.Color();
-        if (p.z > 1.5) color.setHex(0xe60000);      // High pressure front nose
-        else if (p.z > -1.5) color.setHex(0x00ff66); // Mid-chassis airflow
-        else color.setHex(0x888888);                // Low pressure rear wake
+        .nav-links {
+            display: flex;
+            gap: 20px;
+            list-style: none;
+            align-items: center;
+        }
 
-        arrowsMesh.setMatrixAt(i, dummy.matrix);
-        arrowsMesh.setColorAt(i, color);
-    }
-    
-    arrowsMesh.instanceMatrix.needsUpdate = true;
-    if (arrowsMesh.instanceColor) arrowsMesh.instanceColor.needsUpdate = true;
-}
+        .nav-links a {
+            color: #888;
+            text-decoration: none;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            font-weight: 700;
+            letter-spacing: 1px;
+            transition: color 0.3s;
+        }
 
-scene.add(arrowsMesh);
-animateCFDFlow();
+        .nav-links a:hover { color: var(--mclaren-red); }
+
+        .pdf-btn {
+            background: var(--mclaren-red);
+            color: #fff;
+            border: none;
+            padding: 6px 12px;
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            font-weight: bold;
+            border-radius: 4px;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* HERO SECTION */
+        .hero-section {
+            width: 100vw;
+            padding: 120px 50px 40px 50px;
+            background-color: var(--bg-black);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .hero-content { max-width: 850px; }
+
+        .hero-title {
+            font-size: 3.2rem;
+            font-weight: 900;
+            text-transform: uppercase;
+            line-height: 0.95;
+            letter-spacing: -1px;
+        }
+
+        .hero-title span { color: var(--mclaren-red); }
+
+        .subtitle {
+            font-size: 0.85rem;
+            color: #888;
+            margin-top: 8px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            font-weight: 600;
+        }
+
+        .senna-signature {
+            width: 280px;
+            margin-top: 15px;
+            display: block;
+            filter: drop-shadow(0 0 8px rgba(230, 0, 0, 0.6));
+        }
+
+        .quote-box {
+            margin-top: 20px;
+            border-left: 3px solid var(--mclaren-red);
+            padding: 12px 18px;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 0 8px 8px 0;
+            max-width: 600px;
+        }
+
+        .quote-text {
+            font-size: 0.95rem;
+            font-style: italic;
+            color: #e0e0e0;
+            line-height: 1.4;
+        }
+
+        .quote-author {
+            font-size: 0.75rem;
+            color: var(--mclaren-red);
+            font-weight: 700;
+            margin-top: 6px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* Telemetry Ticker Bar */
+        .ticker-bar {
+            margin-top: 30px;
+            display: inline-flex;
+            flex-wrap: wrap;
+            gap: 25px;
+            background: var(--panel-bg);
+            border: 1px solid var(--border-glow);
+            padding: 15px 25px;
+            border-radius: 8px;
+            font-family: var(--font-mono);
+        }
+
+        .ticker-item { display: flex; flex-direction: column; }
+        .ticker-label { font-size: 0.65rem; color: #888; text-transform: uppercase; }
+        .ticker-val { font-size: 1.1rem; color: var(--telemetry-green); font-weight: bold; }
+        .ticker-val.timer { color: var(--mclaren-red); }
+
+        /* 3D CAR SECTION WITH OVERLAY CANVAS & HOTSPOTS */
+        .car-section {
+            position: relative;
+            width: 100vw;
+            height: 75vh;
+            background-color: var(--bg-black);
+            overflow: hidden;
+        }
+
+        model-viewer {
+            width: 100%;
+            height: 100%;
+            z-index: 5;
+            background-color: var(--bg-black);
+            transition: filter 0.5s ease;
+        }
+
+        model-viewer.heatmap-active {
+            filter: hue-rotate(180deg) contrast(200%) saturate(300%);
+        }
+
+        /* 3D Interactive Hotspot Nodes */
+        .hotspot {
+            display: block;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            border: 2px solid var(--telemetry-green);
+            background: rgba(0, 255, 102, 0.3);
+            box-shadow: 0 0 10px var(--telemetry-green);
+            cursor: pointer;
+            position: relative;
+            transition: transform 0.2s;
+        }
+
+        .hotspot:hover {
+            transform: scale(1.3);
+            background: var(--telemetry-green);
+        }
+
+        .hotspot-annotation {
+            position: absolute;
+            bottom: 25px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 200px;
+            background: rgba(10, 10, 10, 0.95);
+            border: 1px solid var(--telemetry-green);
+            color: #fff;
+            padding: 8px 10px;
+            border-radius: 6px;
+            font-family: var(--font-mono);
+            font-size: 0.7rem;
+            line-height: 1.3;
+            pointer-events: none;
+            display: none;
+            box-shadow: 0 0 15px rgba(0, 255, 102, 0.3);
+        }
+
+        .hotspot:hover .hotspot-annotation { display: block; }
+
+        #cfd-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 10;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.5s ease;
+        }
+
+        #cfd-overlay.active { opacity: 1; }
+
+        .cfd-toggle-btn {
+            position: absolute;
+            top: 25px;
+            left: 25px;
+            z-index: 20;
+            background: rgba(0,0,0,0.85);
+            border: 1px solid var(--mclaren-red);
+            color: #fff;
+            padding: 10px 18px;
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            cursor: pointer;
+            border-radius: 4px;
+            letter-spacing: 1px;
+            transition: all 0.3s;
+        }
+
+        .cfd-toggle-btn:hover {
+            background: var(--mclaren-red);
+            box-shadow: 0 0 15px rgba(230, 0, 0, 0.6);
+        }
+
+        .smoke-overlay {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 50%;
+            z-index: 6;
+            pointer-events: none;
+            background-image: 
+                radial-gradient(circle at 50% 100%, rgba(200, 200, 200, 0.4) 0%, rgba(100, 100, 100, 0.15) 45%, rgba(0,0,0,0) 70%),
+                url('image_08133f.png');
+            background-size: cover, cover;
+            background-position: center bottom, center bottom;
+            background-repeat: no-repeat, no-repeat;
+            mix-blend-mode: screen;
+            opacity: 0.8;
+            filter: grayscale(100%) contrast(150%) brightness(120%);
+        }
+
+        /* CONTENT SECTIONS */
+        .content-section {
+            padding: 60px 50px;
+            background-color: var(--bg-black);
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .section-header {
+            font-size: 1.6rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 25px;
+            border-left: 4px solid var(--mclaren-red);
+            padding-left: 15px;
+        }
+
+        /* PIXEL GAME SECTION */
+        .game-wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: #111;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 0 25px rgba(230, 0, 0, 0.2);
+            position: relative;
+        }
+
+        .game-container {
+            position: relative;
+            width: 480px;
+            height: 600px;
+            background: #222;
+            border: 4px solid #333;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.8);
+        }
+
+        #gameCanvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+            image-rendering: pixelated;
+        }
+
+        /* Overlay Screens */
+        .game-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background-size: cover;
+            background-position: center;
+            z-index: 30;
+        }
+
+        #titleScreen {
+            background-image: url('Title screen.png');
+        }
+
+        #gameOverScreen {
+            background-image: url('Game_Over_Screen.png');
+            display: none;
+        }
+
+        .game-screen-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.4);
+            z-index: -1;
+        }
+
+        .play-btn-img {
+            width: 90px;
+            height: 90px;
+            cursor: pointer;
+            transition: transform 0.15s ease;
+            filter: drop-shadow(0 0 10px rgba(230, 0, 0, 0.8));
+        }
+
+        .play-btn-img:hover {
+            transform: scale(1.1);
+        }
+
+        .game-over-text-box {
+            background: rgba(0, 0, 0, 0.85);
+            border: 2px solid var(--mclaren-red);
+            padding: 20px 30px;
+            border-radius: 8px;
+            text-align: center;
+            font-family: var(--font-mono);
+        }
+
+        .game-over-text-box h3 {
+            color: var(--mclaren-red);
+            font-size: 1.5rem;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+        }
+
+        /* Custom Pixel Slider Controls */
+        .controls-container {
+            margin-top: 25px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+            width: 100%;
+            max-width: 480px;
+        }
+
+        .slider-label {
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            color: #aaa;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .custom-slider-wrapper {
+            position: relative;
+            width: 100%;
+            height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .slider-bar-img {
+            position: absolute;
+            width: 100%;
+            height: 32px;
+            image-rendering: pixelated;
+            pointer-events: none;
+        }
+
+        .custom-range-input {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            cursor: pointer;
+            z-index: 10;
+        }
+
+        .slider-handle-img {
+            position: absolute;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            width: 64px;
+            height: 38px;
+            image-rendering: pixelated;
+            pointer-events: none;
+            transition: left 0.05s ease-out;
+            filter: drop-shadow(0 0 6px rgba(0, 255, 102, 0.5));
+        }
+
+        .score-HUD {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            z-index: 25;
+            font-family: var(--font-mono);
+            font-size: 0.9rem;
+            background: rgba(0, 0, 0, 0.75);
+            border: 1px solid var(--telemetry-green);
+            padding: 6px 12px;
+            border-radius: 4px;
+            color: var(--telemetry-green);
+            display: none;
+        }
+
+        /* TELEMETRY GRID */
+        .telemetry-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 25px;
+        }
+
+        .telemetry-card {
+            background: var(--panel-bg);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 22px;
+        }
+
+        .telemetry-card h3 {
+            font-size: 1rem;
+            color: var(--mclaren-red);
+            margin-bottom: 12px;
+            text-transform: uppercase;
+        }
+
+        .telemetry-card p {
+            font-size: 0.88rem;
+            color: #aaa;
+            line-height: 1.5;
+        }
+
+        /* Mass-to-Time Calculator */
+        .calc-group {
+            margin-top: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            font-family: var(--font-mono);
+        }
+
+        .calc-group label {
+            font-size: 0.75rem;
+            color: #888;
+            text-transform: uppercase;
+        }
+
+        .calc-group input {
+            background: #222;
+            border: 1px solid rgba(255,255,255,0.2);
+            color: var(--telemetry-green);
+            padding: 8px;
+            font-family: var(--font-mono);
+            border-radius: 4px;
+        }
+
+        .calc-result {
+            margin-top: 10px;
+            font-family: var(--font-mono);
+            font-size: 0.9rem;
+            color: #fff;
+        }
+
+        /* Donut Chart */
+        .chart-container {
+            display: flex;
+            align-items: center;
+            gap: 25px;
+            margin-top: 15px;
+        }
+
+        .donut-chart {
+            width: 110px;
+            height: 110px;
+            border-radius: 50%;
+            background: conic-gradient(
+                var(--mclaren-red) 0% 45%, 
+                var(--telemetry-green) 45% 80%, 
+                var(--engine-silver) 80% 100%
+            );
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 0 15px rgba(0,0,0,0.8);
+            transition: background 0.4s ease;
+        }
+
+        .donut-hole {
+            width: 65px;
+            height: 65px;
+            background: #121212;
+            border-radius: 50%;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .chart-legend {
+            font-family: var(--font-mono);
+            font-size: 0.78rem;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .legend-dot {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 2px;
+            margin-right: 8px;
+        }
+
+        /* Tables */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-family: var(--font-mono);
+            font-size: 0.82rem;
+            margin-top: 12px;
+        }
+
+        th, td {
+            padding: 8px 10px;
+            text-align: left;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        th { color: var(--mclaren-red); text-transform: uppercase; }
+        td { color: #ddd; }
+        .highlight { color: var(--telemetry-green); font-weight: bold; }
+
+        /* SECRET KEYBOARD ADMIN PANEL */
+        .admin-panel {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            width: 320px;
+            background: #111111;
+            border: 2px solid var(--mclaren-red);
+            border-radius: 8px;
+            padding: 18px;
+            z-index: 9999;
+            display: none;
+            box-shadow: 0 0 30px rgba(230, 0, 0, 0.4);
+        }
+
+        .admin-panel.active { display: block; }
+
+        .admin-header h2 {
+            font-size: 0.9rem;
+            color: var(--mclaren-red);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 12px;
+        }
+
+        .admin-group { margin-bottom: 10px; }
+
+        .admin-group label {
+            display: block;
+            font-size: 0.7rem;
+            color: #aaa;
+            margin-bottom: 3px;
+            text-transform: uppercase;
+        }
+
+        .admin-group input {
+            width: 100%;
+            background: #222;
+            border: 1px solid rgba(255,255,255,0.2);
+            padding: 6px 8px;
+            color: var(--telemetry-green);
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            border-radius: 4px;
+        }
+
+        .edit-toggle-btn {
+            width: 100%;
+            background: var(--mclaren-red);
+            color: white;
+            border: none;
+            padding: 8px;
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            cursor: pointer;
+            text-transform: uppercase;
+            font-weight: bold;
+            border-radius: 4px;
+            margin-top: 8px;
+        }
+
+        /* PRINT STYLES FOR EXPORT */
+        @media print {
+            nav, .cfd-toggle-btn, .admin-panel, .smoke-overlay, .game-wrapper { display: none !important; }
+            body { background: #ffffff !important; color: #000000 !important; }
+            .content-section, .hero-section, .car-section { padding: 15px !important; border: none !important; background: #fff !important; }
+            .telemetry-card { border: 1px solid #ccc !important; background: #fff !important; color: #000 !important; }
+            .telemetry-card p, td { color: #222 !important; }
+            th, .section-header, .hero-title span { color: #e60000 !important; }
+            .ticker-bar { background: #f4f4f4 !important; border: 1px solid #ccc !important; }
+            .ticker-val { color: #008800 !important; }
+            .donut-hole { background: #ffffff !important; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Nav Bar -->
+    <nav>
+        <div class="nav-brand">McLaren <span>MP4/4</span> telemetry</div>
+        <ul class="nav-links">
+            <li><a href="#hero">Launchpad</a></li>
+            <li><a href="#arcade">Pixel Arcade</a></li>
+            <li><a href="#car-view">3D CAD Garage</a></li>
+            <li><a href="#engineering">30g Specs</a></li>
+            <li><a href="#wallstreet">Pitcoin Dashboard</a></li>
+            <li><button class="pdf-btn" onclick="window.print()">Export Judge Sheet PDF</button></li>
+        </ul>
+    </nav>
+
+    <!-- HERO SECTION -->
+    <section class="hero-section" id="hero">
+        <div class="hero-content">
+            <h1 class="hero-title">Pursuit of <span>Perfection</span></h1>
+            <div class="subtitle">F1 IN SCHOOLS CAD & AERODYNAMICS TELEMETRY</div>
+            
+            <img src="6a738e14f6e473000eb4c565.png" alt="Ayrton Senna Signature" class="senna-signature">
+
+            <div class="quote-box">
+                <div class="quote-text">"No matter what your dream is, you have to dedicate yourself entirely to it."</div>
+                <div class="quote-author">— Ayrton Senna</div>
+            </div>
+
+            <!-- Live Ticker Bar -->
+            <div class="ticker-bar">
+                <div class="ticker-item">
+                    <span class="ticker-label">Pitcoin Balance</span>
+                    <span class="ticker-val">₳ 42,500</span>
+                </div>
+                <div class="ticker-item">
+                    <span class="ticker-label">Weekly Yield</span>
+                    <span class="ticker-val">+ ₳ 8,200 / wk</span>
+                </div>
+                <div class="ticker-item">
+                    <span class="ticker-label">Judged Points</span>
+                    <span class="ticker-val">98.4 PTS</span>
+                </div>
+                <div class="ticker-item">
+                    <span class="ticker-label">Scrutineering Window</span>
+                    <span class="ticker-val timer" id="countdown-timer">00d 00h 00m 00s</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- PIXEL ART ARCADE GAME SECTION -->
+    <section class="content-section" id="arcade">
+        <h2 class="section-header">Arcade Arena // MP4/4 Obstacle Sprint</h2>
+        
+        <div class="game-wrapper">
+            <div class="game-container">
+                <!-- Live Score HUD -->
+                <div class="score-HUD" id="scoreHud">DODGED: <span id="scoreVal">0</span></div>
+
+                <!-- TITLE SCREEN OVERLAY -->
+                <div class="game-screen" id="titleScreen">
+                    <div class="game-screen-overlay"></div>
+                    <img src="play button.png" alt="Play Game" class="play-btn-img" id="startBtn">
+                </div>
+
+                <!-- GAME OVER SCREEN OVERLAY -->
+                <div class="game-screen" id="gameOverScreen">
+                    <div class="game-screen-overlay"></div>
+                    <div class="game-over-text-box">
+                        <h3>SKIDDED OUT!</h3>
+                        <p style="font-size: 0.85rem; color: #ddd; margin-bottom: 15px;">TOTAL OBSTACLES DODGED: <span id="finalScore" style="color:var(--telemetry-green); font-weight:bold;">0</span></p>
+                        <img src="play button.png" alt="Replay Game" class="play-btn-img" id="restartBtn">
+                    </div>
+                </div>
+
+                <!-- Canvas Engine -->
+                <canvas id="gameCanvas" width="480" height="600"></canvas>
+            </div>
+
+            <!-- CUSTOM PIXEL SLIDER CONTROLLER -->
+            <div class="controls-container">
+                <div class="slider-label">Steering Slider Control (Or Use Left / Right Arrow Keys)</div>
+                <div class="custom-slider-wrapper">
+                    <img src="grey bar thing.png" alt="Slider Track" class="slider-bar-img">
+                    <img src="blue thing.png" alt="Slider Knob" class="slider-handle-img" id="sliderKnob" style="left: 50%;">
+                    <input type="range" id="carSteerSlider" min="0" max="100" value="50" class="custom-range-input">
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 3D CAR SECTION WITH HOTSPOT NODES & CFD OVERLAY -->
+    <section class="car-section" id="car-view">
+        <button class="cfd-toggle-btn" id="heatmap-btn">Toggle CFD Pressure & Airflow Vectors</button>
+        
+        <model-viewer 
+            id="car-viewer"
+            src="car-model.glb" 
+            alt="McLaren MP4/4 3D CAD Model" 
+            auto-rotate 
+            camera-controls 
+            shadow-intensity="1.5"
+            exposure="1.0">
+
+            <button class="hotspot" slot="hotspot-front-nose" data-position="0m 0.15m 1.6m" data-normal="0m 0m 1m">
+                <div class="hotspot-annotation">
+                    <strong>Front Nose Cone</strong><br>
+                    Cd: 0.115 | Pressure: +1.42 kPa<br>
+                    Stagnation Point & Low Profile
+                </div>
+            </button>
+
+            <button class="hotspot" slot="hotspot-sidepod" data-position="0.5m 0.2m 0m" data-normal="1m 0m 0m">
+                <div class="hotspot-annotation">
+                    <strong>Scalloped Sidepod</strong><br>
+                    Undercut Velocity: 24.8 m/s<br>
+                    Direct Radiator Duct Flow
+                </div>
+            </button>
+
+            <button class="hotspot" slot="hotspot-rear-wing" data-position="0m 0.45m -1.4m" data-normal="0m 1m 0m">
+                <div class="hotspot-annotation">
+                    <strong>Rear Airfoil Wing</strong><br>
+                    Downforce: 0.84 N @ 20 m/s<br>
+                    Low-Vortex Endplate Recess
+                </div>
+            </button>
+        </model-viewer>
+
+        <canvas id="cfd-overlay"></canvas>
+        <div class="smoke-overlay"></div>
+    </section>
+
+    <!-- THE GARAGE: ENGINEERING, CFD & MASS TELEMETRY CALCULATOR -->
+    <section class="content-section" id="engineering">
+        <h2 class="section-header">The Garage // Engineering & CFD</h2>
+        <div class="telemetry-grid">
+            <div class="telemetry-card">
+                <h3>Gordon Murray Aero Concept</h3>
+                <p><strong>Low Front Nose:</strong> Lower nose cone angle cuts frontal surface area, slashing drag while paring unnecessary block mass.</p>
+                <p style="margin-top:10px;"><strong>Sidepod Scalloping:</strong> Undercuts beneath the sidepods mirror classic V6 Turbo intakes while removing dead central body mass.</p>
+            </div>
+
+            <div class="telemetry-card">
+                <h3>30g Weight Optimization Table</h3>
+                <table>
+                    <thead>
+                        <tr><th>Component</th><th>Material Target</th><th>Mass</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>Main Body Shell</td><td>Hollowed Polyurethane (1.0mm)</td><td>18.4g</td></tr>
+                        <tr><td>Wheels & Axles</td><td>Acetal Wheels / Carbon Axle</td><td>7.2g</td></tr>
+                        <tr><td>Wing Elements</td><td>3D Printed Ultra-Thin Film</td><td>3.1g</td></tr>
+                        <tr><td>Paint & Water-Decals</td><td>Micro-Layer & Sanded Primer</td><td>2.5g</td></tr>
+                        <tr><td class="highlight">Total Dry Target</td><td class="highlight">Legal Cutoff Limit</td><td class="highlight">31.2g</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="telemetry-card">
+                <h3>Mass-to-Time 20m Track Calculator</h3>
+                <p>Simulate 20m track timing based on scrutineering mass variation.</p>
+                <div class="calc-group">
+                    <label>Tested Car Mass (Grams)</label>
+                    <input type="number" id="calc-mass-input" value="51.2" step="0.1" min="45" max="65">
+                </div>
+                <div class="calc-result">
+                    Estimated Finish: <span class="highlight" id="calc-time-output">1.024s</span><br>
+                    <span style="font-size:0.75rem; color:#aaa;">Delta vs. 50g Baseline: <span id="calc-delta-output">+0.00ms</span></span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- FINANCIAL DASHBOARD -->
+    <section class="content-section" id="wallstreet">
+        <h2 class="section-header">Wall Street // Financial Dashboard</h2>
+        <div class="telemetry-grid">
+            <div class="telemetry-card">
+                <h3>Pitcoin Allocation Budget</h3>
+                <div class="chart-container">
+                    <div class="donut-chart" id="donut-chart"><div class="donut-hole"></div></div>
+                    <div class="chart-legend">
+                        <div><span class="legend-dot" style="background:var(--mclaren-red)"></span>Aero & CFD: <span id="leg-aero">45%</span></div>
+                        <div><span class="legend-dot" style="background:var(--telemetry-green)"></span>Manufacturing: <span id="leg-mfg">35%</span></div>
+                        <div><span class="legend-dot" style="background:var(--engine-silver)"></span>Marketing: <span id="leg-mkt">20%</span></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="telemetry-card">
+                <h3>Auction Yield & ROI Tracker</h3>
+                <table>
+                    <thead>
+                        <tr><th>Item</th><th>Cost</th><th>Return Yield</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>Chassis Aero Testing</td><td>₳ 5,000</td><td class="highlight">+ 12.5 PTS</td></tr>
+                        <tr><td>Low-Friction Bearings</td><td>₳ 3,200</td><td class="highlight">+ 8.0 PTS</td></tr>
+                        <tr><td>Waterslide Decal License</td><td>₳ 1,500</td><td class="highlight">+ 5.0 PTS</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
+    <!-- SECRET ADMIN CONTROL PANEL -->
+    <div class="admin-panel" id="admin-panel">
+        <div class="admin-header">
+            <h2>Telemetry Controls</h2>
+        </div>
+        
+        <div class="admin-group">
+            <label>Aero Budget Value</label>
+            <input type="number" id="input-aero" value="45">
+        </div>
+
+        <div class="admin-group">
+            <label>Manufacturing Budget Value</label>
+            <input type="number" id="input-mfg" value="35">
+        </div>
+
+        <div class="admin-group">
+            <label>Marketing Budget Value</label>
+            <input type="number" id="input-mkt" value="20">
+        </div>
+
+        <div class="admin-group">
+            <label>Wind Tunnel CFD Velocity Multiplier</label>
+            <input type="range" id="input-wind-speed" min="1" max="15" value="5">
+        </div>
+
+        <button class="edit-toggle-btn" id="toggle-universal-edit">Enable Universal Text Edit Mode</button>
+    </div>
+
+    <script>
+        // --- 1. PIXEL ART RETRO ARCADE GAME ENGINE ---
+        const gCanvas = document.getElementById('gameCanvas');
+        const gCtx = gCanvas.getContext('2d');
+
+        const titleScreen = document.getElementById('titleScreen');
+        const gameOverScreen = document.getElementById('gameOverScreen');
+        const startBtn = document.getElementById('startBtn');
+        const restartBtn = document.getElementById('restartBtn');
+        const scoreHud = document.getElementById('scoreHud');
+        const scoreVal = document.getElementById('scoreVal');
+        const finalScore = document.getElementById('finalScore');
+        
+        const steerSlider = document.getElementById('carSteerSlider');
+        const sliderKnob = document.getElementById('sliderKnob');
+
+        // Asset Loader
+        const imgPlayer = new Image(); imgPlayer.src = 'Pixel_art_car.png';
+        const imgOtherCar = new Image(); imgOtherCar.src = 'other car.jpeg';
+        const imgTyre = new Image(); imgTyre.src = 'tyre.png';
+
+        let gameState = 'TITLE'; // TITLE, PLAYING, GAMEOVER
+        let score = 0;
+        let animationFrameId;
+
+        // Player Attributes
+        const player = {
+            x: gCanvas.width / 2 - 25,
+            y: gCanvas.height - 120,
+            width: 50,
+            height: 95
+        };
+
+        // Track & Obstacles
+        let obstacles = [];
+        let roadOffset = 0;
+        let spawnTimer = 0;
+
+        function updateSliderUI() {
+            const val = steerSlider.value;
+            sliderKnob.style.left = val + '%';
+            if (gameState === 'PLAYING') {
+                const trackMin = 80;
+                const trackMax = gCanvas.width - 80 - player.width;
+                player.x = trackMin + (val / 100) * (trackMax - trackMin);
+            }
+        }
+
+        steerSlider.addEventListener('input', updateSliderUI);
+
+        // Keyboard Arrow Controls Integration
+        window.addEventListener('keydown', (e) => {
+            if (gameState !== 'PLAYING') return;
+            let currentVal = parseInt(steerSlider.value);
+            if (e.key === 'ArrowLeft' || e.key === 'a') {
+                currentVal = Math.max(0, currentVal - 5);
+            } else if (e.key === 'ArrowRight' || e.key === 'd') {
+                currentVal = Math.min(100, currentVal + 5);
+            }
+            steerSlider.value = currentVal;
+            updateSliderUI();
+        });
+
+        function resetGame() {
+            score = 0;
+            scoreVal.innerText = score;
+            obstacles = [];
+            steerSlider.value = 50;
+            updateSliderUI();
+            gameState = 'PLAYING';
+            titleScreen.style.display = 'none';
+            gameOverScreen.style.display = 'none';
+            scoreHud.style.display = 'block';
+            gameLoop();
+        }
+
+        startBtn.addEventListener('click', resetGame);
+        restartBtn.addEventListener('click', resetGame);
+
+        function spawnObstacle() {
+            const isTyre = Math.random() > 0.5;
+            const laneX = 85 + Math.random() * (gCanvas.width - 170 - 45);
+            obstacles.push({
+                x: laneX,
+                y: -100,
+                width: isTyre ? 38 : 45,
+                height: isTyre ? 38 : 85,
+                type: isTyre ? 'TYRE' : 'CAR',
+                speed: 3 + Math.random() * 3
+            });
+        }
+
+        function gameLoop() {
+            if (gameState !== 'PLAYING') return;
+
+            // Clear Background
+            gCtx.fillStyle = '#1e2022';
+            gCtx.fillRect(0, 0, gCanvas.width, gCanvas.height);
+
+            // Draw Scrolling Asphalt Track & Curbs
+            roadOffset = (roadOffset + 6) % 40;
+
+            // Grass Sides
+            gCtx.fillStyle = '#2b580c';
+            gCtx.fillRect(0, 0, 70, gCanvas.height);
+            gCtx.fillRect(gCanvas.width - 70, 0, 70, gCanvas.height);
+
+            // Red/White Curbs
+            for (let y = -40 + roadOffset; y < gCanvas.height; y += 40) {
+                gCtx.fillStyle = (Math.floor((y - roadOffset) / 40) % 2 === 0) ? '#e60000' : '#ffffff';
+                gCtx.fillRect(60, y, 10, 40);
+                gCtx.fillRect(gCanvas.width - 70, y, 10, 40);
+            }
+
+            // Lane Dividers
+            gCtx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+            gCtx.setLineDash([20, 20]);
+            gCtx.lineDashOffset = -roadOffset;
+            gCtx.lineWidth = 3;
+
+            gCtx.beginPath();
+            gCtx.moveTo(gCanvas.width / 2, 0);
+            gCtx.lineTo(gCanvas.width / 2, gCanvas.height);
+            gCtx.stroke();
+            gCtx.setLineDash([]);
+
+            // Draw Player Car
+            gCtx.drawImage(imgPlayer, player.x, player.y, player.width, player.height);
+
+            // Manage Obstacles
+            spawnTimer++;
+            if (spawnTimer > 50) {
+                spawnObstacle();
+                spawnTimer = 0;
+            }
+
+            for (let i = obstacles.length - 1; i >= 0; i--) {
+                let obs = obstacles[i];
+                obs.y += obs.speed + 3;
+
+                // Draw Obstacle Asset
+                if (obs.type === 'TYRE') {
+                    gCtx.drawImage(imgTyre, obs.x, obs.y, obs.width, obs.height);
+                } else {
+                    gCtx.drawImage(imgOtherCar, obs.x, obs.y, obs.width, obs.height);
+                }
+
+                // Collision Detection (Bounding Box)
+                if (
+                    player.x < obs.x + obs.width &&
+                    player.x + player.width > obs.x &&
+                    player.y < obs.y + obs.height &&
+                    player.y + player.height > obs.y
+                ) {
+                    // Trigger Game Over
+                    gameState = 'GAMEOVER';
+                    finalScore.innerText = score;
+                    gameOverScreen.style.display = 'flex';
+                    scoreHud.style.display = 'none';
+                    return;
+                }
+
+                // Passed Obstacle Scoring
+                if (obs.y > gCanvas.height) {
+                    score++;
+                    scoreVal.innerText = score;
+                    obstacles.splice(i, 1);
+                }
+            }
+
+            animationFrameId = requestAnimationFrame(gameLoop);
+        }
+
+        // --- 2. CFD HEATMAP & VECTOR OVERLAY ---
+        const heatmapBtn = document.getElementById('heatmap-btn');
+        const carViewer = document.getElementById('car-viewer');
+        const cfdCanvas = document.getElementById('cfd-overlay');
+
+        heatmapBtn.addEventListener('click', () => {
+            carViewer.classList.toggle('heatmap-active');
+            cfdCanvas.classList.toggle('active');
+        });
+
+        const ctx = cfdCanvas.getContext('2d');
+        const windSpeedInput = document.getElementById('input-wind-speed');
+        
+        function resizeCfdCanvas() {
+            cfdCanvas.width = cfdCanvas.offsetWidth;
+            cfdCanvas.height = cfdCanvas.offsetHeight;
+        }
+        resizeCfdCanvas();
+        window.addEventListener('resize', resizeCfdCanvas);
+
+        const particles = Array.from({ length: 65 }, () => ({
+            x: Math.random() * cfdCanvas.width * 0.8 + cfdCanvas.width * 0.1,
+            y: Math.random() * cfdCanvas.height * 0.5 + cfdCanvas.height * 0.25,
+            baseSpeed: 1 + Math.random() * 1.5,
+            size: 6 + Math.random() * 5
+        }));
+
+        function renderCFDFlow() {
+            ctx.clearRect(0, 0, cfdCanvas.width, cfdCanvas.height);
+
+            if (cfdCanvas.classList.contains('active')) {
+                const speedMultiplier = parseFloat(windSpeedInput.value) || 5;
+
+                particles.forEach(p => {
+                    p.x -= p.baseSpeed * (speedMultiplier * 0.5);
+                    if (p.x < cfdCanvas.width * 0.15) {
+                        p.x = cfdCanvas.width * 0.85;
+                        p.y = Math.random() * cfdCanvas.height * 0.5 + cfdCanvas.height * 0.25;
+                    }
+
+                    let arrowColor = "#00ff66";
+                    if (p.x > cfdCanvas.width * 0.65) arrowColor = "#e60000";
+                    else if (p.x < cfdCanvas.width * 0.35) arrowColor = "#888888";
+
+                    ctx.save();
+                    ctx.translate(p.x, p.y);
+                    ctx.fillStyle = arrowColor;
+                    ctx.shadowBlur = 12;
+                    ctx.shadowColor = arrowColor;
+
+                    ctx.beginPath();
+                    ctx.moveTo(-p.size * 1.5, 0);
+                    ctx.lineTo(0, -p.size / 2);
+                    ctx.lineTo(0, p.size / 2);
+                    ctx.closePath();
+                    ctx.fill();
+
+                    ctx.strokeStyle = arrowColor;
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.moveTo(0, 0);
+                    ctx.lineTo(p.size * 2, 0);
+                    ctx.stroke();
+
+                    ctx.restore();
+                });
+            }
+
+            requestAnimationFrame(renderCFDFlow);
+        }
+        renderCFDFlow();
+
+        // --- 3. MASS CALCULATOR & TIMER ---
+        const massInput = document.getElementById('calc-mass-input');
+        const timeOutput = document.getElementById('calc-time-output');
+        const deltaOutput = document.getElementById('calc-delta-output');
+
+        function updateMassCalc() {
+            const mass = parseFloat(massInput.value) || 50.0;
+            const baseMass = 50.0;
+            const baseTime = 1.000;
+
+            const calculatedTime = baseTime * Math.sqrt(mass / baseMass);
+            const deltaMs = (calculatedTime - baseTime) * 1000;
+
+            timeOutput.innerText = calculatedTime.toFixed(3) + 's';
+            deltaOutput.innerText = (deltaMs >= 0 ? '+' : '') + deltaMs.toFixed(2) + 'ms';
+            deltaOutput.style.color = deltaMs <= 0 ? 'var(--telemetry-green)' : 'var(--mclaren-red)';
+        }
+        massInput.addEventListener('input', updateMassCalc);
+
+        const targetDate = new Date().getTime() + (14 * 24 * 60 * 60 * 1000);
+        setInterval(() => {
+            const diff = targetDate - new Date().getTime();
+            const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+            const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+            document.getElementById('countdown-timer').innerText = `${days}d ${hours}h ${minutes}m ${seconds}s`;
+        }, 1000);
+
+        // --- 4. ADMIN & BUDGET CHART ---
+        const inputAero = document.getElementById('input-aero');
+        const inputMfg = document.getElementById('input-mfg');
+        const inputMkt = document.getElementById('input-mkt');
+        const donutChart = document.getElementById('donut-chart');
+
+        function updateChart() {
+            const aeroVal = parseFloat(inputAero.value) || 0;
+            const mfgVal = parseFloat(inputMfg.value) || 0;
+            const mktVal = parseFloat(inputMkt.value) || 0;
+            const total = aeroVal + mfgVal + mktVal || 1;
+
+            const aeroPct = Math.round((aeroVal / total) * 100);
+            const mfgPct = Math.round((mfgVal / total) * 100);
+
+            document.getElementById('leg-aero').innerText = aeroPct + '%';
+            document.getElementById('leg-mfg').innerText = mfgPct + '%';
+            document.getElementById('leg-mkt').innerText = (100 - aeroPct - mfgPct) + '%';
+
+            donutChart.style.background = `conic-gradient(
+                var(--mclaren-red) 0% ${aeroPct}%, 
+                var(--telemetry-green) ${aeroPct}% ${aeroPct + mfgPct}%, 
+                var(--engine-silver) ${aeroPct + mfgPct}% 100%
+            )`;
+        }
+
+        inputAero.addEventListener('input', updateChart);
+        inputMfg.addEventListener('input', updateChart);
+        inputMkt.addEventListener('input', updateChart);
+
+        const sequence = ['1', '2', '1', '9', '8', '8'];
+        let keyHistory = [];
+        const adminPanel = document.getElementById('admin-panel');
+        const editBtn = document.getElementById('toggle-universal-edit');
+        let isEditingEnabled = false;
+
+        window.addEventListener('keydown', (e) => {
+            if (e.target.tagName === 'INPUT' || (isEditingEnabled && document.activeElement.isContentEditable)) return;
+            keyHistory.push(e.key);
+            if (keyHistory.length > sequence.length) keyHistory.shift();
+            if (keyHistory.join('') === sequence.join('')) adminPanel.classList.toggle('active');
+        });
+
+        editBtn.addEventListener('click', () => {
+            isEditingEnabled = !isEditingEnabled;
+            document.body.contentEditable = isEditingEnabled;
+            editBtn.innerText = isEditingEnabled ? "Disable Text Edit Mode" : "Enable Text Edit Mode";
+            editBtn.style.background = isEditingEnabled ? "var(--telemetry-green)" : "var(--mclaren-red)";
+            editBtn.style.color = isEditingEnabled ? "#000" : "#fff";
+        });
+    </script>
+</body>
+</html>
