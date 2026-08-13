@@ -1,905 +1,4 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>McLaren MP4/4 | Telemetry & Arcade Interface</title>
-    <!-- 3D Model Viewer Engine -->
-    <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js"></script>
-    <style>
-        :root {
-            --mclaren-red: #e60000;
-            --telemetry-green: #00ff66;
-            --engine-silver: #888888;
-            --bg-black: #000000;
-            --panel-bg: rgba(18, 18, 18, 0.95);
-            --border-glow: rgba(230, 0, 0, 0.4);
-            --font-mono: "Courier New", Courier, monospace;
-        }
-
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-        }
-
-        body {
-            background-color: var(--bg-black);
-            color: #ffffff;
-            overflow-x: hidden;
-        }
-
-        /* Top Navigation */
-        nav {
-            position: fixed;
-            top: 0;
-            width: 100%;
-            z-index: 100;
-            background: rgba(0, 0, 0, 0.95);
-            backdrop-filter: blur(10px);
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-            padding: 15px 30px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .nav-brand {
-            font-size: 1.1rem;
-            font-weight: 900;
-            letter-spacing: 2px;
-            text-transform: uppercase;
-        }
-
-        .nav-brand span { color: var(--mclaren-red); }
-
-        .nav-links {
-            display: flex;
-            gap: 20px;
-            list-style: none;
-            align-items: center;
-        }
-
-        .nav-links a {
-            color: #888;
-            text-decoration: none;
-            font-size: 0.8rem;
-            text-transform: uppercase;
-            font-weight: 700;
-            letter-spacing: 1px;
-            transition: color 0.3s;
-        }
-
-        .nav-links a:hover { color: var(--mclaren-red); }
-
-        .pdf-btn {
-            background: var(--mclaren-red);
-            color: #fff;
-            border: none;
-            padding: 6px 12px;
-            font-family: var(--font-mono);
-            font-size: 0.75rem;
-            font-weight: bold;
-            border-radius: 4px;
-            cursor: pointer;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-
-        /* HERO SECTION */
-        .hero-section {
-            width: 100vw;
-            padding: 120px 50px 40px 50px;
-            background-color: var(--bg-black);
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-        }
-
-        .hero-content { max-width: 850px; }
-
-        .hero-title {
-            font-size: 3.2rem;
-            font-weight: 900;
-            text-transform: uppercase;
-            line-height: 0.95;
-            letter-spacing: -1px;
-        }
-
-        .hero-title span { color: var(--mclaren-red); }
-
-        .subtitle {
-            font-size: 0.85rem;
-            color: #888;
-            margin-top: 8px;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            font-weight: 600;
-        }
-
-        .senna-signature {
-            width: 280px;
-            margin-top: 15px;
-            display: block;
-            filter: drop-shadow(0 0 8px rgba(230, 0, 0, 0.6));
-        }
-
-        .quote-box {
-            margin-top: 20px;
-            border-left: 3px solid var(--mclaren-red);
-            padding: 12px 18px;
-            background: rgba(255, 255, 255, 0.03);
-            border-radius: 0 8px 8px 0;
-            max-width: 600px;
-        }
-
-        .quote-text {
-            font-size: 0.95rem;
-            font-style: italic;
-            color: #e0e0e0;
-            line-height: 1.4;
-        }
-
-        .quote-author {
-            font-size: 0.75rem;
-            color: var(--mclaren-red);
-            font-weight: 700;
-            margin-top: 6px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-
-        /* Telemetry Ticker Bar */
-        .ticker-bar {
-            margin-top: 30px;
-            display: inline-flex;
-            flex-wrap: wrap;
-            gap: 25px;
-            background: var(--panel-bg);
-            border: 1px solid var(--border-glow);
-            padding: 15px 25px;
-            border-radius: 8px;
-            font-family: var(--font-mono);
-        }
-
-        .ticker-item { display: flex; flex-direction: column; }
-        .ticker-label { font-size: 0.65rem; color: #888; text-transform: uppercase; }
-        .ticker-val { font-size: 1.1rem; color: var(--telemetry-green); font-weight: bold; }
-        .ticker-val.timer { color: var(--mclaren-red); }
-
-        /* 3D CAR SECTION WITH OVERLAY CANVAS & HOTSPOTS */
-        .car-section {
-            position: relative;
-            width: 100vw;
-            height: 75vh;
-            background-color: var(--bg-black);
-            overflow: hidden;
-        }
-
-        model-viewer {
-            width: 100%;
-            height: 100%;
-            z-index: 5;
-            background-color: var(--bg-black);
-            transition: filter 0.5s ease;
-        }
-
-        model-viewer.heatmap-active {
-            filter: hue-rotate(180deg) contrast(200%) saturate(300%);
-        }
-
-        /* 3D Interactive Hotspot Nodes */
-        .hotspot {
-            display: block;
-            width: 18px;
-            height: 18px;
-            border-radius: 50%;
-            border: 2px solid var(--telemetry-green);
-            background: rgba(0, 255, 102, 0.3);
-            box-shadow: 0 0 10px var(--telemetry-green);
-            cursor: pointer;
-            position: relative;
-            transition: transform 0.2s;
-        }
-
-        .hotspot:hover {
-            transform: scale(1.3);
-            background: var(--telemetry-green);
-        }
-
-        .hotspot-annotation {
-            position: absolute;
-            bottom: 25px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 200px;
-            background: rgba(10, 10, 10, 0.95);
-            border: 1px solid var(--telemetry-green);
-            color: #fff;
-            padding: 8px 10px;
-            border-radius: 6px;
-            font-family: var(--font-mono);
-            font-size: 0.7rem;
-            line-height: 1.3;
-            pointer-events: none;
-            display: none;
-            box-shadow: 0 0 15px rgba(0, 255, 102, 0.3);
-        }
-
-        .hotspot:hover .hotspot-annotation { display: block; }
-
-        #cfd-overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: 10;
-            pointer-events: none;
-            opacity: 0;
-            transition: opacity 0.5s ease;
-        }
-
-        #cfd-overlay.active { opacity: 1; }
-
-        .cfd-toggle-btn {
-            position: absolute;
-            top: 25px;
-            left: 25px;
-            z-index: 20;
-            background: rgba(0,0,0,0.85);
-            border: 1px solid var(--mclaren-red);
-            color: #fff;
-            padding: 10px 18px;
-            font-family: var(--font-mono);
-            font-size: 0.75rem;
-            text-transform: uppercase;
-            cursor: pointer;
-            border-radius: 4px;
-            letter-spacing: 1px;
-            transition: all 0.3s;
-        }
-
-        .cfd-toggle-btn:hover {
-            background: var(--mclaren-red);
-            box-shadow: 0 0 15px rgba(230, 0, 0, 0.6);
-        }
-
-        .smoke-overlay {
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            width: 100%;
-            height: 50%;
-            z-index: 6;
-            pointer-events: none;
-            background-image: 
-                radial-gradient(circle at 50% 100%, rgba(200, 200, 200, 0.4) 0%, rgba(100, 100, 100, 0.15) 45%, rgba(0,0,0,0) 70%),
-                url('image_08133f.png');
-            background-size: cover, cover;
-            background-position: center bottom, center bottom;
-            background-repeat: no-repeat, no-repeat;
-            mix-blend-mode: screen;
-            opacity: 0.8;
-            filter: grayscale(100%) contrast(150%) brightness(120%);
-        }
-
-        /* CONTENT SECTIONS */
-        .content-section {
-            padding: 60px 50px;
-            background-color: var(--bg-black);
-            border-top: 1px solid rgba(255, 255, 255, 0.08);
-        }
-
-        .section-header {
-            font-size: 1.6rem;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            margin-bottom: 25px;
-            border-left: 4px solid var(--mclaren-red);
-            padding-left: 15px;
-        }
-
-        /* PIXEL GAME SECTION */
-        .game-wrapper {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            background: #111;
-            border: 1px solid rgba(255, 255, 255, 0.15);
-            border-radius: 12px;
-            padding: 30px;
-            box-shadow: 0 0 25px rgba(230, 0, 0, 0.2);
-            position: relative;
-        }
-
-        .game-container {
-            position: relative;
-            width: 480px;
-            height: 600px;
-            background: #181818;
-            border: 4px solid #333;
-            border-radius: 8px;
-            overflow: hidden;
-            box-shadow: inset 0 0 20px rgba(0,0,0,0.8);
-        }
-
-        #gameCanvas {
-            width: 100%;
-            height: 100%;
-            display: block;
-            image-rendering: pixelated;
-        }
-
-        /* Overlay Screens */
-        .game-screen {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: space-between;
-            padding: 25px 0;
-            background-size: contain;
-            background-repeat: no-repeat;
-            background-position: center;
-            background-color: #000;
-            z-index: 30;
-        }
-
-        #titleScreen {
-            background-image: url('Title screen.png');
-            background-size: cover;
-            justify-content: center;
-        }
-
-        #gameOverScreen {
-            background-image: url('Game_Over_Screen.png');
-            display: none;
-        }
-
-        .play-btn-img {
-            width: 80px;
-            height: 80px;
-            cursor: pointer;
-            transition: transform 0.15s ease;
-            filter: drop-shadow(0 0 10px rgba(230, 0, 0, 0.9));
-        }
-
-        .play-btn-img:hover {
-            transform: scale(1.12);
-        }
-
-        .game-over-banner {
-            background: rgba(0, 0, 0, 0.85);
-            border: 2px solid var(--mclaren-red);
-            padding: 12px 25px;
-            border-radius: 6px;
-            text-align: center;
-            font-family: var(--font-mono);
-            backdrop-filter: blur(4px);
-            box-shadow: 0 0 15px rgba(230, 0, 0, 0.5);
-        }
-
-        .game-over-banner h3 {
-            color: var(--mclaren-red);
-            font-size: 1.3rem;
-            text-transform: uppercase;
-            margin-bottom: 4px;
-        }
-
-        /* Custom Pixel Slider Controls */
-        .controls-container {
-            margin-top: 25px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 12px;
-            width: 100%;
-            max-width: 480px;
-        }
-
-        .slider-label {
-            font-family: var(--font-mono);
-            font-size: 0.8rem;
-            color: #aaa;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-
-        .custom-slider-wrapper {
-            position: relative;
-            width: 100%;
-            height: 48px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .slider-bar-img {
-            position: absolute;
-            width: 100%;
-            height: 32px;
-            image-rendering: pixelated;
-            pointer-events: none;
-        }
-
-        .custom-range-input {
-            position: absolute;
-            width: 100%;
-            height: 100%;
-            opacity: 0;
-            cursor: pointer;
-            z-index: 10;
-        }
-
-        .slider-handle-img {
-            position: absolute;
-            top: 50%;
-            transform: translate(-50%, -50%);
-            width: 64px;
-            height: 38px;
-            image-rendering: pixelated;
-            pointer-events: none;
-            transition: left 0.05s ease-out;
-            filter: drop-shadow(0 0 6px rgba(0, 255, 102, 0.5));
-        }
-
-        .score-HUD {
-            position: absolute;
-            top: 15px;
-            left: 15px;
-            z-index: 25;
-            font-family: var(--font-mono);
-            font-size: 0.9rem;
-            background: rgba(0, 0, 0, 0.75);
-            border: 1px solid var(--telemetry-green);
-            padding: 6px 12px;
-            border-radius: 4px;
-            color: var(--telemetry-green);
-            display: none;
-        }
-
-        /* TELEMETRY GRID */
-        .telemetry-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-            gap: 25px;
-        }
-
-        .telemetry-card {
-            background: var(--panel-bg);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 8px;
-            padding: 22px;
-        }
-
-        .telemetry-card h3 {
-            font-size: 1rem;
-            color: var(--mclaren-red);
-            margin-bottom: 12px;
-            text-transform: uppercase;
-        }
-
-        .telemetry-card p {
-            font-size: 0.88rem;
-            color: #aaa;
-            line-height: 1.5;
-        }
-
-        /* Mass-to-Time Calculator */
-        .calc-group {
-            margin-top: 12px;
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-            font-family: var(--font-mono);
-        }
-
-        .calc-group label {
-            font-size: 0.75rem;
-            color: #888;
-            text-transform: uppercase;
-        }
-
-        .calc-group input {
-            background: #222;
-            border: 1px solid rgba(255,255,255,0.2);
-            color: var(--telemetry-green);
-            padding: 8px;
-            font-family: var(--font-mono);
-            border-radius: 4px;
-        }
-
-        .calc-result {
-            margin-top: 10px;
-            font-family: var(--font-mono);
-            font-size: 0.9rem;
-            color: #fff;
-        }
-
-        /* Donut Chart */
-        .chart-container {
-            display: flex;
-            align-items: center;
-            gap: 25px;
-            margin-top: 15px;
-        }
-
-        .donut-chart {
-            width: 110px;
-            height: 110px;
-            border-radius: 50%;
-            background: conic-gradient(
-                var(--mclaren-red) 0% 45%, 
-                var(--telemetry-green) 45% 80%, 
-                var(--engine-silver) 80% 100%
-            );
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            box-shadow: 0 0 15px rgba(0,0,0,0.8);
-            transition: background 0.4s ease;
-        }
-
-        .donut-hole {
-            width: 65px;
-            height: 65px;
-            background: #121212;
-            border-radius: 50%;
-            border: 1px solid rgba(255, 255, 255, 0.05);
-        }
-
-        .chart-legend {
-            font-family: var(--font-mono);
-            font-size: 0.78rem;
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
-
-        .legend-dot {
-            display: inline-block;
-            width: 10px;
-            height: 10px;
-            border-radius: 2px;
-            margin-right: 8px;
-        }
-
-        /* Tables */
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            font-family: var(--font-mono);
-            font-size: 0.82rem;
-            margin-top: 12px;
-        }
-
-        th, td {
-            padding: 8px 10px;
-            text-align: left;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-        }
-
-        th { color: var(--mclaren-red); text-transform: uppercase; }
-        td { color: #ddd; }
-        .highlight { color: var(--telemetry-green); font-weight: bold; }
-
-        /* SECRET KEYBOARD ADMIN PANEL */
-        .admin-panel {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            width: 320px;
-            background: #111111;
-            border: 2px solid var(--mclaren-red);
-            border-radius: 8px;
-            padding: 18px;
-            z-index: 9999;
-            display: none;
-            box-shadow: 0 0 30px rgba(230, 0, 0, 0.4);
-        }
-
-        .admin-panel.active { display: block; }
-
-        .admin-header h2 {
-            font-size: 0.9rem;
-            color: var(--mclaren-red);
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            margin-bottom: 12px;
-        }
-
-        .admin-group { margin-bottom: 10px; }
-
-        .admin-group label {
-            display: block;
-            font-size: 0.7rem;
-            color: #aaa;
-            margin-bottom: 3px;
-            text-transform: uppercase;
-        }
-
-        .admin-group input {
-            width: 100%;
-            background: #222;
-            border: 1px solid rgba(255,255,255,0.2);
-            padding: 6px 8px;
-            color: var(--telemetry-green);
-            font-family: var(--font-mono);
-            font-size: 0.85rem;
-            border-radius: 4px;
-        }
-
-        .edit-toggle-btn {
-            width: 100%;
-            background: var(--mclaren-red);
-            color: white;
-            border: none;
-            padding: 8px;
-            font-family: var(--font-mono);
-            font-size: 0.75rem;
-            cursor: pointer;
-            text-transform: uppercase;
-            font-weight: bold;
-            border-radius: 4px;
-            margin-top: 8px;
-        }
-
-        /* PRINT STYLES FOR EXPORT */
-        @media print {
-            nav, .cfd-toggle-btn, .admin-panel, .smoke-overlay, .game-wrapper { display: none !important; }
-            body { background: #ffffff !important; color: #000000 !important; }
-            .content-section, .hero-section, .car-section { padding: 15px !important; border: none !important; background: #fff !important; }
-            .telemetry-card { border: 1px solid #ccc !important; background: #fff !important; color: #000 !important; }
-            .telemetry-card p, td { color: #222 !important; }
-            th, .section-header, .hero-title span { color: #e60000 !important; }
-            .ticker-bar { background: #f4f4f4 !important; border: 1px solid #ccc !important; }
-            .ticker-val { color: #008800 !important; }
-            .donut-hole { background: #ffffff !important; }
-        }
-    </style>
-</head>
-<body>
-
-    <!-- Nav Bar -->
-    <nav>
-        <div class="nav-brand">McLaren <span>MP4/4</span> telemetry</div>
-        <ul class="nav-links">
-            <li><a href="#hero">Launchpad</a></li>
-            <li><a href="#arcade">Pixel Arcade</a></li>
-            <li><a href="#car-view">3D CAD Garage</a></li>
-            <li><a href="#engineering">30g Specs</a></li>
-            <li><a href="#wallstreet">Pitcoin Dashboard</a></li>
-            <li><button class="pdf-btn" onclick="window.print()">Export Judge Sheet PDF</button></li>
-        </ul>
-    </nav>
-
-    <!-- HERO SECTION -->
-    <section class="hero-section" id="hero">
-        <div class="hero-content">
-            <h1 class="hero-title">Pursuit of <span>Perfection</span></h1>
-            <div class="subtitle">F1 IN SCHOOLS CAD & AERODYNAMICS TELEMETRY</div>
-            
-            <img src="6a738e14f6e473000eb4c565.png" alt="Ayrton Senna Signature" class="senna-signature">
-
-            <div class="quote-box">
-                <div class="quote-text">"No matter what your dream is, you have to dedicate yourself entirely to it."</div>
-                <div class="quote-author">— Ayrton Senna</div>
-            </div>
-
-            <!-- Live Ticker Bar -->
-            <div class="ticker-bar">
-                <div class="ticker-item">
-                    <span class="ticker-label">Pitcoin Balance</span>
-                    <span class="ticker-val">₳ 42,500</span>
-                </div>
-                <div class="ticker-item">
-                    <span class="ticker-label">Weekly Yield</span>
-                    <span class="ticker-val">+ ₳ 8,200 / wk</span>
-                </div>
-                <div class="ticker-item">
-                    <span class="ticker-label">Judged Points</span>
-                    <span class="ticker-val">98.4 PTS</span>
-                </div>
-                <div class="ticker-item">
-                    <span class="ticker-label">Scrutineering Window</span>
-                    <span class="ticker-val timer" id="countdown-timer">00d 00h 00m 00s</span>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- PIXEL ART ARCADE GAME SECTION -->
-    <section class="content-section" id="arcade">
-        <h2 class="section-header">Arcade Arena // Dynamic Track Sprint</h2>
-        
-        <div class="game-wrapper">
-            <div class="game-container">
-                <!-- Live Score HUD -->
-                <div class="score-HUD" id="scoreHud">DODGED: <span id="scoreVal">0</span></div>
-
-                <!-- TITLE SCREEN OVERLAY -->
-                <div class="game-screen" id="titleScreen">
-                    <div></div>
-                    <img src="play button.png" alt="Play Game" class="play-btn-img" id="startBtn">
-                </div>
-
-                <!-- GAME OVER SCREEN OVERLAY (Full Unblocked Image) -->
-                <div class="game-screen" id="gameOverScreen">
-                    <div class="game-over-banner">
-                        <h3>SKIDDED OUT!</h3>
-                        <p style="font-size: 0.8rem; color: #ddd;">TOTAL OBSTACLES DODGED: <span id="finalScore" style="color:var(--telemetry-green); font-weight:bold;">0</span></p>
-                    </div>
-                    <img src="play button.png" alt="Replay Game" class="play-btn-img" id="restartBtn">
-                </div>
-
-                <!-- Canvas Engine -->
-                <canvas id="gameCanvas" width="480" height="600"></canvas>
-            </div>
-
-            <!-- CUSTOM PIXEL SLIDER CONTROLLER -->
-            <div class="controls-container">
-                <div class="slider-label">Steering Slider Control (Or Use Left / Right Arrow Keys)</div>
-                <div class="custom-slider-wrapper">
-                    <img src="grey bar thing.png" alt="Slider Track" class="slider-bar-img">
-                    <img src="blue thing.png" alt="Slider Knob" class="slider-handle-img" id="sliderKnob" style="left: 50%;">
-                    <input type="range" id="carSteerSlider" min="0" max="100" value="50" class="custom-range-input">
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- 3D CAR SECTION WITH HOTSPOT NODES & CFD OVERLAY -->
-    <section class="car-section" id="car-view">
-        <button class="cfd-toggle-btn" id="heatmap-btn">Toggle CFD Pressure & Airflow Vectors</button>
-        
-        <model-viewer 
-            id="car-viewer"
-            src="car-model.glb" 
-            alt="McLaren MP4/4 3D CAD Model" 
-            auto-rotate 
-            camera-controls 
-            shadow-intensity="1.5"
-            exposure="1.0">
-
-            <button class="hotspot" slot="hotspot-front-nose" data-position="0m 0.15m 1.6m" data-normal="0m 0m 1m">
-                <div class="hotspot-annotation">
-                    <strong>Front Nose Cone</strong><br>
-                    Cd: 0.115 | Pressure: +1.42 kPa<br>
-                    Stagnation Point & Low Profile
-                </div>
-            </button>
-
-            <button class="hotspot" slot="hotspot-sidepod" data-position="0.5m 0.2m 0m" data-normal="1m 0m 0m">
-                <div class="hotspot-annotation">
-                    <strong>Scalloped Sidepod</strong><br>
-                    Undercut Velocity: 24.8 m/s<br>
-                    Direct Radiator Duct Flow
-                </div>
-            </button>
-
-            <button class="hotspot" slot="hotspot-rear-wing" data-position="0m 0.45m -1.4m" data-normal="0m 1m 0m">
-                <div class="hotspot-annotation">
-                    <strong>Rear Airfoil Wing</strong><br>
-                    Downforce: 0.84 N @ 20 m/s<br>
-                    Low-Vortex Endplate Recess
-                </div>
-            </button>
-        </model-viewer>
-
-        <canvas id="cfd-overlay"></canvas>
-        <div class="smoke-overlay"></div>
-    </section>
-
-    <!-- THE GARAGE: ENGINEERING, CFD & MASS TELEMETRY CALCULATOR -->
-    <section class="content-section" id="engineering">
-        <h2 class="section-header">The Garage // Engineering & CFD</h2>
-        <div class="telemetry-grid">
-            <div class="telemetry-card">
-                <h3>Gordon Murray Aero Concept</h3>
-                <p><strong>Low Front Nose:</strong> Lower nose cone angle cuts frontal surface area, slashing drag while paring unnecessary block mass.</p>
-                <p style="margin-top:10px;"><strong>Sidepod Scalloping:</strong> Undercuts beneath the sidepods mirror classic V6 Turbo intakes while removing dead central body mass.</p>
-            </div>
-
-            <div class="telemetry-card">
-                <h3>30g Weight Optimization Table</h3>
-                <table>
-                    <thead>
-                        <tr><th>Component</th><th>Material Target</th><th>Mass</th></tr>
-                    </thead>
-                    <tbody>
-                        <tr><td>Main Body Shell</td><td>Hollowed Polyurethane (1.0mm)</td><td>18.4g</td></tr>
-                        <tr><td>Wheels & Axles</td><td>Acetal Wheels / Carbon Axle</td><td>7.2g</td></tr>
-                        <tr><td>Wing Elements</td><td>3D Printed Ultra-Thin Film</td><td>3.1g</td></tr>
-                        <tr><td>Paint & Water-Decals</td><td>Micro-Layer & Sanded Primer</td><td>2.5g</td></tr>
-                        <tr><td class="highlight">Total Dry Target</td><td class="highlight">Legal Cutoff Limit</td><td class="highlight">31.2g</td></tr>
-                    </tbody>
-                </table>
-            </div>
-
-            <div class="telemetry-card">
-                <h3>Mass-to-Time 20m Track Calculator</h3>
-                <p>Simulate 20m track timing based on scrutineering mass variation.</p>
-                <div class="calc-group">
-                    <label>Tested Car Mass (Grams)</label>
-                    <input type="number" id="calc-mass-input" value="51.2" step="0.1" min="45" max="65">
-                </div>
-                <div class="calc-result">
-                    Estimated Finish: <span class="highlight" id="calc-time-output">1.024s</span><br>
-                    <span style="font-size:0.75rem; color:#aaa;">Delta vs. 50g Baseline: <span id="calc-delta-output">+0.00ms</span></span>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- FINANCIAL DASHBOARD -->
-    <section class="content-section" id="wallstreet">
-        <h2 class="section-header">Wall Street // Financial Dashboard</h2>
-        <div class="telemetry-grid">
-            <div class="telemetry-card">
-                <h3>Pitcoin Allocation Budget</h3>
-                <div class="chart-container">
-                    <div class="donut-chart" id="donut-chart"><div class="donut-hole"></div></div>
-                    <div class="chart-legend">
-                        <div><span class="legend-dot" style="background:var(--mclaren-red)"></span>Aero & CFD: <span id="leg-aero">45%</span></div>
-                        <div><span class="legend-dot" style="background:var(--telemetry-green)"></span>Manufacturing: <span id="leg-mfg">35%</span></div>
-                        <div><span class="legend-dot" style="background:var(--engine-silver)"></span>Marketing: <span id="leg-mkt">20%</span></div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="telemetry-card">
-                <h3>Auction Yield & ROI Tracker</h3>
-                <table>
-                    <thead>
-                        <tr><th>Item</th><th>Cost</th><th>Return Yield</th></tr>
-                    </thead>
-                    <tbody>
-                        <tr><td>Chassis Aero Testing</td><td>₳ 5,000</td><td class="highlight">+ 12.5 PTS</td></tr>
-                        <tr><td>Low-Friction Bearings</td><td>₳ 3,200</td><td class="highlight">+ 8.0 PTS</td></tr>
-                        <tr><td>Waterslide Decal License</td><td>₳ 1,500</td><td class="highlight">+ 5.0 PTS</td></tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </section>
-
-    <!-- SECRET ADMIN CONTROL PANEL -->
-    <div class="admin-panel" id="admin-panel">
-        <div class="admin-header">
-            <h2>Telemetry Controls</h2>
-        </div>
-        
-        <div class="admin-group">
-            <label>Aero Budget Value</label>
-            <input type="number" id="input-aero" value="45">
-        </div>
-
-        <div class="admin-group">
-            <label>Manufacturing Budget Value</label>
-            <input type="number" id="input-mfg" value="35">
-        </div>
-
-        <div class="admin-group">
-            <label>Marketing Budget Value</label>
-            <input type="number" id="input-mkt" value="20">
-        </div>
-
-        <div class="admin-group">
-            <label>Wind Tunnel CFD Velocity Multiplier</label>
-            <input type="range" id="input-wind-speed" min="1" max="15" value="5">
-        </div>
-
-        <button class="edit-toggle-btn" id="toggle-universal-edit">Enable Universal Text Edit Mode</button>
-    </div>
-
-    <script>
+<script>
         // --- 1. PIXEL ART RETRO ARCADE GAME ENGINE ---
         const gCanvas = document.getElementById('gameCanvas');
         const gCtx = gCanvas.getContext('2d');
@@ -932,9 +31,8 @@
             const imgData = oCtx.getImageData(0, 0, offscreen.width, offscreen.height);
             const data = imgData.data;
             for (let i = 0; i < data.length; i += 4) {
-                // Remove white / light grey pixels
                 if (data[i] > 195 && data[i+1] > 195 && data[i+2] > 195) {
-                    data[i+3] = 0; // Set Alpha to transparent
+                    data[i+3] = 0; // Alpha transparent
                 }
             }
             oCtx.putImageData(imgData, 0, 0);
@@ -957,11 +55,11 @@
         let roadOffset = 0;
         let spawnTimer = 0;
 
-        // Dynamic Track Narrowing / Widening Logic
+        // Dynamic Track Narrowing / Widening Logic (CHILLED OUT SINE WAVE)
         function getTrackBounds(y, frame) {
-            // Smooth sine wave narrowing & widening calculation
-            const wave = Math.sin((frame + y * 0.5) * 0.015);
-            const currentTrackWidth = 260 + wave * 70; // Width varies between 190px and 330px
+            // Slower frequency multiplier for a natural, non-distracting drift
+            const wave = Math.sin((frame * 0.4 + y * 0.2) * 0.003); 
+            const currentTrackWidth = 260 + wave * 35; // Gentle width fluctuation
             const centerX = gCanvas.width / 2;
             
             const left = centerX - currentTrackWidth / 2;
@@ -1015,7 +113,6 @@
             const isTyre = Math.random() > 0.45;
             const bounds = getTrackBounds(0, frameCounter);
             
-            // Enlarge Tyre dimensions (60x60) for clear hazard visibility
             const obsWidth = isTyre ? 60 : 45;
             const obsHeight = isTyre ? 60 : 85;
             
@@ -1035,17 +132,15 @@
             if (gameState !== 'PLAYING') return;
             frameCounter++;
 
-            // Clear Background Grass
+            // Background Grass
             gCtx.fillStyle = '#1e380c';
             gCtx.fillRect(0, 0, gCanvas.width, gCanvas.height);
 
             roadOffset = (roadOffset + 6) % 30;
 
-            // Render Dynamic Road Asphalt & Border Tyre Walls
+            // Render Dynamic Road Asphalt
             for (let y = 0; y < gCanvas.height; y += 10) {
                 const bounds = getTrackBounds(y, frameCounter);
-                
-                // Dark Asphalt Road Surface
                 gCtx.fillStyle = '#222224';
                 gCtx.fillRect(bounds.left, y, bounds.width, 10);
             }
@@ -1054,14 +149,11 @@
             const borderTyreSize = 28;
             for (let y = -30 + roadOffset; y < gCanvas.height + 30; y += borderTyreSize) {
                 const bounds = getTrackBounds(y, frameCounter);
-                
-                // Left Tyre Wall
                 gCtx.drawImage(imgTyre, bounds.left - borderTyreSize / 2, y, borderTyreSize, borderTyreSize);
-                // Right Tyre Wall
                 gCtx.drawImage(imgTyre, bounds.right - borderTyreSize / 2, y, borderTyreSize, borderTyreSize);
             }
 
-            // Center Lane Dashers
+            // Center Lane Dashes
             gCtx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
             gCtx.setLineDash([18, 18]);
             gCtx.lineDashOffset = -roadOffset;
@@ -1077,10 +169,9 @@
             gCtx.stroke();
             gCtx.setLineDash([]);
 
-            // Clamp Player to Track Limits
+            // Track Bounds Check
             const playerBounds = getTrackBounds(player.y, frameCounter);
             if (player.x < playerBounds.left + 5 || player.x + player.width > playerBounds.right - 5) {
-                // Out of Bounds Crash
                 gameState = 'GAMEOVER';
                 finalScore.innerText = score;
                 gameOverScreen.style.display = 'flex';
@@ -1088,15 +179,14 @@
                 return;
             }
 
-            // DRAW PLAYER CAR (Rotated -90 degrees so it faces upwards upright)
+            // Draw Rotated Player Car
             gCtx.save();
             gCtx.translate(player.x + player.width / 2, player.y + player.height / 2);
             gCtx.rotate(-Math.PI / 2);
-            // Draw centered around origin
             gCtx.drawImage(imgPlayer, -player.height / 2, -player.width / 2, player.height, player.width);
             gCtx.restore();
 
-            // Spawn & Manage Obstacles
+            // Obstacle Spawning & Movement
             spawnTimer++;
             if (spawnTimer > 45) {
                 spawnObstacle();
@@ -1107,7 +197,6 @@
                 let obs = obstacles[i];
                 obs.y += obs.speed + 3;
 
-                // Draw Obstacles
                 if (obs.type === 'TYRE') {
                     gCtx.drawImage(imgTyre, obs.x, obs.y, obs.width, obs.height);
                 } else {
@@ -1118,7 +207,7 @@
                     }
                 }
 
-                // Collision Detection Box
+                // Collision Detection
                 if (
                     player.x < obs.x + obs.width &&
                     player.x + player.width > obs.x &&
@@ -1132,7 +221,6 @@
                     return;
                 }
 
-                // Score Tracking
                 if (obs.y > gCanvas.height) {
                     score++;
                     scoreVal.innerText = score;
@@ -1295,5 +383,3 @@
             editBtn.style.color = isEditingEnabled ? "#000" : "#fff";
         });
     </script>
-</body>
-</html>
