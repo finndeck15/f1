@@ -1,5 +1,65 @@
 <script>
-        // --- 1. PIXEL ART RETRO ARCADE GAME ENGINE ---
+        // --- 1. PURE JS 8-BIT AUDIO SYNTHESIZER ---
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        let audioCtx = null;
+
+        function initAudio() {
+            if (!audioCtx) audioCtx = new AudioContext();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+        }
+
+        function playSound(type) {
+            if (!audioCtx) return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            const now = audioCtx.currentTime;
+
+            if (type === 'score') {
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(587.33, now); // D5
+                osc.frequency.setValueAtTime(880, now + 0.05); // A5
+                gain.gain.setValueAtTime(0.08, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+                osc.start(now);
+                osc.stop(now + 0.12);
+            } else if (type === 'powerup') {
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(440, now);
+                osc.frequency.exponentialRampToValueAtTime(880, now + 0.2);
+                gain.gain.setValueAtTime(0.15, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+                osc.start(now);
+                osc.stop(now + 0.25);
+            } else if (type === 'crash') {
+                // White noise burst for retro crash
+                const bufferSize = audioCtx.sampleRate * 0.3;
+                const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+                const output = buffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) {
+                    output[i] = Math.random() * 2 - 1;
+                }
+                const whiteNoise = audioCtx.createBufferSource();
+                whiteNoise.buffer = buffer;
+                
+                const filter = audioCtx.createBiquadFilter();
+                filter.type = 'lowpass';
+                filter.frequency.setValueAtTime(800, now);
+                filter.frequency.linearRampToValueAtTime(50, now + 0.3);
+
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+
+                whiteNoise.connect(filter);
+                filter.connect(gain);
+                whiteNoise.start(now);
+                whiteNoise.stop(now + 0.3);
+            }
+        }
+
+        // --- 2. PIXEL ART RETRO ARCADE ENGINE ---
         const gCanvas = document.getElementById('gameCanvas');
         const gCtx = gCanvas.getContext('2d');
 
@@ -14,12 +74,12 @@
         const steerSlider = document.getElementById('carSteerSlider');
         const sliderKnob = document.getElementById('sliderKnob');
 
-        // Raw Asset Declarations
+        // Image Assets
         const imgPlayer = new Image(); imgPlayer.src = 'Pixel_art_car.png';
         const imgRawOpponent = new Image(); imgRawOpponent.src = 'other car.jpeg';
         const imgTyre = new Image(); imgTyre.src = 'tyre.png';
 
-        // Processed Opponent Car Canvas (Dynamic White Background Removal)
+        // Processed Transparent Opponent Car
         let processedOpponentCanvas = null;
         imgRawOpponent.onload = () => {
             const offscreen = document.createElement('canvas');
@@ -31,40 +91,52 @@
             const imgData = oCtx.getImageData(0, 0, offscreen.width, offscreen.height);
             const data = imgData.data;
             for (let i = 0; i < data.length; i += 4) {
-                if (data[i] > 195 && data[i+1] > 195 && data[i+2] > 195) {
-                    data[i+3] = 0; // Alpha transparent
-                }
+                if (data[i] > 195 && data[i+1] > 195 && data[i+2] > 195) data[i+3] = 0;
             }
             oCtx.putImageData(imgData, 0, 0);
             processedOpponentCanvas = offscreen;
         };
 
-        let gameState = 'TITLE'; // TITLE, PLAYING, GAMEOVER
+        // Game State Variables
+        let gameState = 'TITLE';
         let score = 0;
+        let pitcoinBalance = 42500;
         let frameCounter = 0;
+        let baseSpeed = 3.5;
+        let drsTimer = 0; // Invulnerability frames
+        let particles = [];
+        let skidMarks = [];
 
-        // Player Physical Dimensions
+        // Leaderboard State (Local Storage)
+        let leaderboard = JSON.parse(localStorage.getItem('mclaren_f1_leaderboard')) || [
+            { tag: 'SEN', score: 32 },
+            { tag: 'PRO', score: 28 },
+            { tag: 'MAX', score: 21 },
+            { tag: 'HAM', score: 15 },
+            { tag: 'NOR', score: 10 }
+        ];
+
+        function saveLeaderboard() {
+            localStorage.setItem('mclaren_f1_leaderboard', JSON.stringify(leaderboard));
+        }
+
         const player = {
             x: gCanvas.width / 2 - 20,
-            y: gCanvas.height - 120,
+            y: gCanvas.height - 130,
             width: 40,
-            height: 80
+            height: 80,
+            lastX: gCanvas.width / 2 - 20
         };
 
         let obstacles = [];
         let roadOffset = 0;
         let spawnTimer = 0;
 
-        // Dynamic Track Narrowing / Widening Logic (CHILLED OUT SINE WAVE)
         function getTrackBounds(y, frame) {
-            // Slower frequency multiplier for a natural, non-distracting drift
             const wave = Math.sin((frame * 0.4 + y * 0.2) * 0.003); 
-            const currentTrackWidth = 260 + wave * 35; // Gentle width fluctuation
+            const currentTrackWidth = 260 + wave * 35; 
             const centerX = gCanvas.width / 2;
-            
-            const left = centerX - currentTrackWidth / 2;
-            const right = centerX + currentTrackWidth / 2;
-            return { left, right, width: currentTrackWidth };
+            return { left: centerX - currentTrackWidth / 2, right: centerX + currentTrackWidth / 2, width: currentTrackWidth };
         }
 
         function updateSliderUI() {
@@ -83,20 +155,21 @@
         window.addEventListener('keydown', (e) => {
             if (gameState !== 'PLAYING') return;
             let currentVal = parseInt(steerSlider.value);
-            if (e.key === 'ArrowLeft' || e.key === 'a') {
-                currentVal = Math.max(0, currentVal - 5);
-            } else if (e.key === 'ArrowRight' || e.key === 'd') {
-                currentVal = Math.min(100, currentVal + 5);
-            }
+            if (e.key === 'ArrowLeft' || e.key === 'a') currentVal = Math.max(0, currentVal - 5);
+            else if (e.key === 'ArrowRight' || e.key === 'd') currentVal = Math.min(100, currentVal + 5);
             steerSlider.value = currentVal;
             updateSliderUI();
         });
 
         function resetGame() {
+            initAudio();
             score = 0;
             frameCounter = 0;
+            baseSpeed = 3.5;
+            drsTimer = 0;
             scoreVal.innerText = score;
             obstacles = [];
+            skidMarks = [];
             steerSlider.value = 50;
             gameState = 'PLAYING';
             titleScreen.style.display = 'none';
@@ -110,42 +183,87 @@
         restartBtn.addEventListener('click', resetGame);
 
         function spawnObstacle() {
-            const isTyre = Math.random() > 0.45;
             const bounds = getTrackBounds(0, frameCounter);
-            
-            const obsWidth = isTyre ? 60 : 45;
-            const obsHeight = isTyre ? 60 : 85;
-            
+            const rand = Math.random();
+            let type = 'CAR';
+            let obsWidth = 45, obsHeight = 85;
+
+            if (rand < 0.4) {
+                type = 'TYRE'; obsWidth = 55; obsHeight = 55;
+            } else if (rand > 0.85) {
+                type = 'DRS'; obsWidth = 35; obsHeight = 35;
+            } else if (rand > 0.72) {
+                type = 'FUEL'; obsWidth = 32; obsHeight = 40;
+            }
+
             const spawnX = bounds.left + 15 + Math.random() * (bounds.width - 30 - obsWidth);
-            
             obstacles.push({
                 x: spawnX,
                 y: -100,
                 width: obsWidth,
                 height: obsHeight,
-                type: isTyre ? 'TYRE' : 'CAR',
-                speed: 3.5 + Math.random() * 2.5
+                type: type,
+                speed: baseSpeed + Math.random() * 2
             });
+        }
+
+        function triggerGameOver() {
+            playSound('crash');
+            gameState = 'GAMEOVER';
+            finalScore.innerText = score;
+
+            // Prompt for Driver Tag on Leaderboard Highscore
+            setTimeout(() => {
+                const tag = prompt(`SKIDDED OUT!\nYour Score: ${score}\nEnter 3-Letter Driver Initials for the Leaderboard:`, "MCU");
+                if (tag) {
+                    const cleanTag = tag.toUpperCase().substring(0, 3);
+                    leaderboard.push({ tag: cleanTag, score: score });
+                    leaderboard.sort((a, b) => b.score - a.score);
+                    leaderboard = leaderboard.slice(0, 5); // Top 5
+                    saveLeaderboard();
+                }
+                gameOverScreen.style.display = 'flex';
+                scoreHud.style.display = 'none';
+            }, 150);
         }
 
         function gameLoop() {
             if (gameState !== 'PLAYING') return;
             frameCounter++;
 
-            // Background Grass
-            gCtx.fillStyle = '#1e380c';
+            // Dynamic Speed Escalation
+            baseSpeed = 3.5 + Math.floor(score / 10) * 0.8;
+
+            // Background
+            gCtx.fillStyle = '#1a330a';
             gCtx.fillRect(0, 0, gCanvas.width, gCanvas.height);
 
-            roadOffset = (roadOffset + 6) % 30;
+            roadOffset = (roadOffset + baseSpeed + 2) % 30;
 
-            // Render Dynamic Road Asphalt
+            // Render Track
             for (let y = 0; y < gCanvas.height; y += 10) {
                 const bounds = getTrackBounds(y, frameCounter);
                 gCtx.fillStyle = '#222224';
                 gCtx.fillRect(bounds.left, y, bounds.width, 10);
             }
 
-            // Render Tyre Wall Borders
+            // Skid Mark Trails
+            if (Math.abs(player.x - player.lastX) > 2.5) {
+                skidMarks.push({ x: player.x + 8, y: player.y + 65, alpha: 0.6 });
+                skidMarks.push({ x: player.x + player.width - 12, y: player.y + 65, alpha: 0.6 });
+            }
+            player.lastX = player.x;
+
+            for (let i = skidMarks.length - 1; i >= 0; i--) {
+                let sm = skidMarks[i];
+                sm.y += baseSpeed;
+                sm.alpha -= 0.015;
+                gCtx.fillStyle = `rgba(10, 10, 10, ${sm.alpha})`;
+                gCtx.fillRect(sm.x, sm.y, 5, 8);
+                if (sm.alpha <= 0) skidMarks.splice(i, 1);
+            }
+
+            // Tyre Wall Borders
             const borderTyreSize = 28;
             for (let y = -30 + roadOffset; y < gCanvas.height + 30; y += borderTyreSize) {
                 const bounds = getTrackBounds(y, frameCounter);
@@ -153,12 +271,11 @@
                 gCtx.drawImage(imgTyre, bounds.right - borderTyreSize / 2, y, borderTyreSize, borderTyreSize);
             }
 
-            // Center Lane Dashes
+            // Dashed Centerline
             gCtx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
             gCtx.setLineDash([18, 18]);
             gCtx.lineDashOffset = -roadOffset;
             gCtx.lineWidth = 3;
-
             gCtx.beginPath();
             for (let y = 0; y < gCanvas.height; y += 20) {
                 const bounds = getTrackBounds(y, frameCounter);
@@ -169,69 +286,134 @@
             gCtx.stroke();
             gCtx.setLineDash([]);
 
-            // Track Bounds Check
+            // Out-of-bounds Check
             const playerBounds = getTrackBounds(player.y, frameCounter);
             if (player.x < playerBounds.left + 5 || player.x + player.width > playerBounds.right - 5) {
-                gameState = 'GAMEOVER';
-                finalScore.innerText = score;
-                gameOverScreen.style.display = 'flex';
-                scoreHud.style.display = 'none';
+                triggerGameOver();
                 return;
             }
 
-            // Draw Rotated Player Car
+            // Draw DRS Aura / Player Car
+            if (drsTimer > 0) drsTimer--;
+            
             gCtx.save();
             gCtx.translate(player.x + player.width / 2, player.y + player.height / 2);
+            
+            if (drsTimer > 0) {
+                // Rainbow DRS Glow
+                gCtx.shadowBlur = 18;
+                gCtx.shadowColor = `hsl(${(frameCounter * 12) % 360}, 100%, 50%)`;
+            }
+
             gCtx.rotate(-Math.PI / 2);
             gCtx.drawImage(imgPlayer, -player.height / 2, -player.width / 2, player.height, player.width);
             gCtx.restore();
 
-            // Obstacle Spawning & Movement
+            // Obstacle Spawning
             spawnTimer++;
-            if (spawnTimer > 45) {
+            const spawnInterval = Math.max(22, 45 - Math.floor(score / 5) * 3);
+            if (spawnTimer > spawnInterval) {
                 spawnObstacle();
                 spawnTimer = 0;
             }
 
+            // Obstacle Loop
             for (let i = obstacles.length - 1; i >= 0; i--) {
                 let obs = obstacles[i];
-                obs.y += obs.speed + 3;
+                obs.y += obs.speed + baseSpeed * 0.5;
 
+                // Render Item / Hazard
                 if (obs.type === 'TYRE') {
                     gCtx.drawImage(imgTyre, obs.x, obs.y, obs.width, obs.height);
-                } else {
-                    if (processedOpponentCanvas) {
-                        gCtx.drawImage(processedOpponentCanvas, obs.x, obs.y, obs.width, obs.height);
-                    } else {
-                        gCtx.drawImage(imgRawOpponent, obs.x, obs.y, obs.width, obs.height);
-                    }
+                } else if (obs.type === 'CAR') {
+                    if (processedOpponentCanvas) gCtx.drawImage(processedOpponentCanvas, obs.x, obs.y, obs.width, obs.height);
+                    else gCtx.drawImage(imgRawOpponent, obs.x, obs.y, obs.width, obs.height);
+                } else if (obs.type === 'DRS') {
+                    // DRS Green Energy Orb
+                    gCtx.fillStyle = '#00ff66';
+                    gCtx.beginPath();
+                    gCtx.arc(obs.x + 17, obs.y + 17, 16, 0, Math.PI * 2);
+                    gCtx.fill();
+                    gCtx.fillStyle = '#000';
+                    gCtx.font = 'bold 12px monospace';
+                    gCtx.fillText('DRS', obs.x + 6, obs.y + 21);
+                } else if (obs.type === 'FUEL') {
+                    // Pitcoin Gold Fuel Can
+                    gCtx.fillStyle = '#ffcc00';
+                    gCtx.fillRect(obs.x, obs.y, obs.width, obs.height);
+                    gCtx.fillStyle = '#000';
+                    gCtx.font = 'bold 12px monospace';
+                    gCtx.fillText('₳', obs.x + 10, obs.y + 24);
                 }
 
-                // Collision Detection
+                // Collisions
                 if (
                     player.x < obs.x + obs.width &&
                     player.x + player.width > obs.x &&
                     player.y < obs.y + obs.height &&
                     player.y + player.height > obs.y
                 ) {
-                    gameState = 'GAMEOVER';
-                    finalScore.innerText = score;
-                    gameOverScreen.style.display = 'flex';
-                    scoreHud.style.display = 'none';
-                    return;
+                    if (obs.type === 'DRS') {
+                        drsTimer = 180; // ~3 seconds @ 60fps
+                        playSound('powerup');
+                        obstacles.splice(i, 1);
+                        continue;
+                    } else if (obs.type === 'FUEL') {
+                        pitcoinBalance += 500;
+                        document.querySelector('.ticker-val').innerText = `₳ ${pitcoinBalance.toLocaleString()}`;
+                        playSound('powerup');
+                        obstacles.splice(i, 1);
+                        continue;
+                    } else if (drsTimer === 0) {
+                        triggerGameOver();
+                        return;
+                    }
                 }
 
+                // Score Point for Dodging
                 if (obs.y > gCanvas.height) {
-                    score++;
-                    scoreVal.innerText = score;
+                    if (obs.type === 'TYRE' || obs.type === 'CAR') {
+                        score++;
+                        scoreVal.innerText = score;
+                        playSound('score');
+                    }
                     obstacles.splice(i, 1);
                 }
             }
 
+            // CANVAS HUD: SPEEDOMETER & LEADERBOARD OVERLAY
+            const calcSpeed = Math.floor(180 + baseSpeed * 12);
+            gCtx.fillStyle = 'rgba(0, 0, 0, 0.75)';
+            gCtx.fillRect(gCanvas.width - 130, 15, 115, 50);
+            gCtx.strokeStyle = 'var(--mclaren-red)';
+            gCtx.strokeRect(gCanvas.width - 130, 15, 115, 50);
+
+            gCtx.fillStyle = '#00ff66';
+            gCtx.font = 'bold 14px monospace';
+            gCtx.fillText(`${calcSpeed} MPH`, gCanvas.width - 120, 35);
+
+            // Tachometer RPM Bar
+            gCtx.fillStyle = '#333';
+            gCtx.fillRect(gCanvas.width - 120, 43, 95, 8);
+            gCtx.fillStyle = calcSpeed > 230 ? '#e60000' : '#00ff66';
+            gCtx.fillRect(gCanvas.width - 120, 43, Math.min(95, (calcSpeed / 250) * 95), 8);
+
+            // Render Highscore Leaderboard Box on Canvas Top Left
+            gCtx.fillStyle = 'rgba(0, 0, 0, 0.75)';
+            gCtx.fillRect(15, 50, 130, 95);
+            gCtx.fillStyle = '#e60000';
+            gCtx.font = 'bold 10px monospace';
+            gCtx.fillText('HALL OF FAME', 22, 65);
+            
+            gCtx.fillStyle = '#aaa';
+            leaderboard.forEach((entry, idx) => {
+                gCtx.fillText(`${idx + 1}. ${entry.tag} - ${entry.score}`, 22, 80 + idx * 13);
+            });
+
             requestAnimationFrame(gameLoop);
         }
 
-        // --- 2. CFD HEATMAP & VECTOR OVERLAY ---
+        // --- 3. CFD HEATMAP & VECTOR OVERLAY ---
         const heatmapBtn = document.getElementById('heatmap-btn');
         const carViewer = document.getElementById('car-viewer');
         const cfdCanvas = document.getElementById('cfd-overlay');
@@ -251,7 +433,7 @@
         resizeCfdCanvas();
         window.addEventListener('resize', resizeCfdCanvas);
 
-        const particles = Array.from({ length: 65 }, () => ({
+        const cfdParticles = Array.from({ length: 65 }, () => ({
             x: Math.random() * cfdCanvas.width * 0.8 + cfdCanvas.width * 0.1,
             y: Math.random() * cfdCanvas.height * 0.5 + cfdCanvas.height * 0.25,
             baseSpeed: 1 + Math.random() * 1.5,
@@ -264,7 +446,7 @@
             if (cfdCanvas.classList.contains('active')) {
                 const speedMultiplier = parseFloat(windSpeedInput.value) || 5;
 
-                particles.forEach(p => {
+                cfdParticles.forEach(p => {
                     p.x -= p.baseSpeed * (speedMultiplier * 0.5);
                     if (p.x < cfdCanvas.width * 0.15) {
                         p.x = cfdCanvas.width * 0.85;
@@ -303,7 +485,7 @@
         }
         renderCFDFlow();
 
-        // --- 3. MASS CALCULATOR & TIMER ---
+        // --- 4. MASS CALCULATOR & TIMER ---
         const massInput = document.getElementById('calc-mass-input');
         const timeOutput = document.getElementById('calc-time-output');
         const deltaOutput = document.getElementById('calc-delta-output');
@@ -332,7 +514,7 @@
             document.getElementById('countdown-timer').innerText = `${days}d ${hours}h ${minutes}m ${seconds}s`;
         }, 1000);
 
-        // --- 4. ADMIN & BUDGET CHART ---
+        // --- 5. ADMIN & BUDGET CHART ---
         const inputAero = document.getElementById('input-aero');
         const inputMfg = document.getElementById('input-mfg');
         const inputMkt = document.getElementById('input-mkt');
